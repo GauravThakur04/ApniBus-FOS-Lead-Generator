@@ -1,0 +1,144 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String         @id @default(uuid())
+  empId            String?        @unique // e.g. AB024, AB407, AB012
+  name             String
+  email            String         @unique
+  password         String         @default("password123")
+  role             String         @default("FOS") // ADMIN, RH, TL, BD, ISA, FOS
+  designation      String?        // RH, TL, BD, ISA
+  reportingManager String?        // e.g. sonu.mishra@apnibus.com, tarun.kumar@apnibus.com
+  phone            String?
+  state            String?
+  cities           String?        // Location / assigned cities
+  active           Boolean        @default(true)
+  assignedLeads    Lead[]         @relation("AssignedLeads")
+  activities       LeadActivity[]
+  followUps        FollowUp[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Lead {
+  id                    String         @id @default(uuid())
+  placeId               String?        @unique
+  businessName          String
+  phone                 String?
+  email                 String?
+  website               String?
+  address               String?
+  city                  String
+  state                 String
+  country               String         @default("India")
+  latitude              Float?
+  longitude             Float?
+  googleMapsUrl         String?
+  rating                Float?
+  reviewCount           Int?           @default(0)
+
+  source                String         @default("Google Places") // Google Places, Campaign, Ground Team, Referral, Website, Manual, CSV Import, Other
+  searchKeyword         String?
+  searchKeywordsHistory String?        // JSON array of keywords
+
+  leadScore             Int            @default(0)
+  leadTemperature       String         @default("COLD") // HOT, WARM, COLD
+  status                String         @default("New") // New, Assigned, Contacted, Interested, Not Interested, Follow-up, Demo Scheduled, Demo Completed, Converted, Lost, Invalid
+
+  assignedToId          String?
+  assignedTo            User?          @relation("AssignedLeads", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  lastContactedAt       DateTime?
+  nextFollowUpAt        DateTime?
+  notes                 String?
+
+  lastFoundAt           DateTime       @default(now())
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  activities            LeadActivity[]
+  followUps             FollowUp[]
+
+  @@index([phone])
+  @@index([city])
+  @@index([state])
+  @@index([status])
+  @@index([assignedToId])
+  @@index([leadScore])
+  @@index([createdAt])
+  @@index([nextFollowUpAt])
+}
+
+model LeadActivity {
+  id          String   @id @default(uuid())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  type        String   // Created, Status_Changed, Assigned, Called, WhatsApp, Note_Added, FollowUp_Scheduled, Demo_Scheduled, Converted
+  description String
+  metadata    String?  // JSON additional data
+  createdAt   DateTime @default(now())
+}
+
+model FollowUp {
+  id           String   @id @default(uuid())
+  leadId       String
+  lead         Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  followUpDate DateTime
+  time         String?
+  reason       String?
+  notes        String?
+  status       String   @default("Pending") // Pending, Completed, Cancelled
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model SearchJob {
+  id           String   @id @default(uuid())
+  state        String
+  city         String
+  keyword      String
+  searchedAt   DateTime @default(now())
+  resultsFound Int      @default(0)
+  newLeads     Int      @default(0)
+  duplicates   Int      @default(0)
+  status       String   @default("COMPLETED")
+  errors       String?
+}
+
+model State {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String?
+  active    Boolean  @default(true)
+  cities    City[]
+  createdAt DateTime @default(now())
+}
+
+model City {
+  id        String   @id @default(uuid())
+  name      String
+  stateId   String
+  state     State    @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([name, stateId])
+}
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
