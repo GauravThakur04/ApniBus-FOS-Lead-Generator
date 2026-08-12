@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Shield, Lock, AlertCircle, CheckCircle2, User, ArrowRight, Crown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Shield, AlertCircle, CheckCircle2, User, ArrowRight, Crown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // STRICT PERMISSION MATRIX (ONLY THESE 5 EMAILS ALLOWED)
@@ -51,7 +51,54 @@ export default function LoginPage() {
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const authenticateEmail = (inputEmail: string) => {
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+
+  // Load Official Google Identity Services Script
+  useEffect(() => {
+    window.handleGoogleCallback = (response: any) => {
+      try {
+        const base64Url = response.credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          atob(base64)
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const payload = JSON.parse(jsonPayload);
+        const googleEmail = payload.email || '';
+        processAuthenticatedEmail(googleEmail, payload.name);
+      } catch (err) {
+        setError('Failed to process Google Identity token.');
+      }
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      if (window.google?.accounts?.id && googleClientId) {
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: window.handleGoogleCallback,
+        });
+        window.google.accounts.id.renderButton(
+          document.getElementById('googleSignInBtn'),
+          { theme: 'outline', size: 'large', width: '100%', text: 'continue_with' }
+        );
+      }
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, [googleClientId]);
+
+  const processAuthenticatedEmail = (inputEmail: string, googleName?: string) => {
     setError('');
     setSuccessMsg('');
     const cleanEmail = inputEmail.trim().toLowerCase();
@@ -61,12 +108,12 @@ export default function LoginPage() {
       return;
     }
 
-    // STRICT CHECK: MUST BE EXACT MATCH IN AUTHORIZED_USER_MAP
+    // STRICT PERMISSION CHECK
     const userInfo = AUTHORIZED_USER_MAP[cleanEmail];
 
     if (!userInfo) {
       setError(
-        `⛔ ACCESS DENIED: "${cleanEmail}" is NOT authorized. Access is strictly locked to approved ApniBus leadership team.`
+        `⛔ ACCESS DENIED: "${cleanEmail}" is NOT an authorized ApniBus leadership account. Access is strictly locked to approved sales leaders.`
       );
       setLoading(false);
       return;
@@ -74,13 +121,14 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    // Save session in localStorage
+    const userName = googleName || userInfo.name;
+
     localStorage.setItem('userEmail', cleanEmail);
-    localStorage.setItem('userName', userInfo.name);
+    localStorage.setItem('userName', userName);
     localStorage.setItem('userRole', userInfo.role);
     window.dispatchEvent(new Event('storage'));
 
-    setSuccessMsg(`Access Granted! Welcome ${userInfo.name}. Redirecting to portal...`);
+    setSuccessMsg(`Google Authentication Verified! Welcome ${userName}. Redirecting...`);
 
     setTimeout(() => {
       router.push(userInfo.defaultPortal);
@@ -110,7 +158,7 @@ export default function LoginPage() {
         {/* Security Warning Badge */}
         <div className="p-3 bg-slate-100 border border-slate-200 rounded-2xl text-xs text-slate-700 font-bold flex items-center gap-2">
           <Shield className="w-4 h-4 text-blue-600 shrink-0" />
-          <span>Strict Security: Access is locked exclusively to 5 designated ApniBus leaders.</span>
+          <span>Strict Access: Locked exclusively to Gaurav, Arvind, Sonu, Tarun &amp; Rajnish.</span>
         </div>
 
         {error && (
@@ -127,11 +175,21 @@ export default function LoginPage() {
           </div>
         )}
 
+        {/* Render Official Google Sign-In Button */}
+        <div className="space-y-3">
+          <div id="googleSignInBtn" className="w-full flex justify-center min-h-[44px]"></div>
+
+          <div className="relative text-center my-3">
+            <span className="bg-white px-3 text-[11px] font-bold text-slate-400 uppercase">Or select authorized email</span>
+            <div className="absolute inset-0 top-1/2 border-t border-slate-200 -z-10" />
+          </div>
+        </div>
+
         {/* Form Login */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            authenticateEmail(email);
+            processAuthenticatedEmail(email);
           }}
           className="space-y-4"
         >
@@ -170,14 +228,14 @@ export default function LoginPage() {
         {/* 1-Tap Authorized User Selectors */}
         <div className="pt-4 border-t border-slate-100 space-y-2">
           <p className="text-[11px] font-black text-slate-400 uppercase tracking-wide">
-            Select Your Account to Sign In:
+            Whitelisted Accounts (Click to Sign In):
           </p>
 
           <div className="space-y-1.5">
             {/* Gaurav Thakur - Super Admin */}
             <button
               type="button"
-              onClick={() => authenticateEmail('gaurav.thakur@apnibus.com')}
+              onClick={() => processAuthenticatedEmail('gaurav.thakur@apnibus.com')}
               className="w-full p-2.5 rounded-xl border border-amber-300 bg-amber-50/60 hover:bg-amber-100/70 text-left flex items-center justify-between text-xs transition"
             >
               <div>
@@ -185,7 +243,7 @@ export default function LoginPage() {
                   <Crown className="w-3.5 h-3.5 text-amber-600" />
                   <span>Gaurav Thakur (Super Admin)</span>
                 </span>
-                <span className="text-[10px] text-amber-700">gaurav.thakur@apnibus.com • Full Access All Portals</span>
+                <span className="text-[10px] text-amber-700">gaurav.thakur@apnibus.com • Opens Every Portal</span>
               </div>
               <span className="text-[10px] bg-amber-200 text-amber-900 font-black px-2 py-0.5 rounded">SUPER</span>
             </button>
@@ -193,7 +251,7 @@ export default function LoginPage() {
             {/* Arvind Ranjan - Admin */}
             <button
               type="button"
-              onClick={() => authenticateEmail('arvind.ranjan@apnibus.com')}
+              onClick={() => processAuthenticatedEmail('arvind.ranjan@apnibus.com')}
               className="w-full p-2.5 rounded-xl border border-blue-200 bg-blue-50/50 hover:bg-blue-100/60 text-left flex items-center justify-between text-xs transition"
             >
               <div>
@@ -206,7 +264,7 @@ export default function LoginPage() {
             {/* Sonu Mishra */}
             <button
               type="button"
-              onClick={() => authenticateEmail('sonu.mishra@apnibus.com')}
+              onClick={() => processAuthenticatedEmail('sonu.mishra@apnibus.com')}
               className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50/50 text-left flex items-center justify-between text-xs transition"
             >
               <div>
@@ -219,7 +277,7 @@ export default function LoginPage() {
             {/* Tarun Kumar */}
             <button
               type="button"
-              onClick={() => authenticateEmail('tarun.kumar@apnibus.com')}
+              onClick={() => processAuthenticatedEmail('tarun.kumar@apnibus.com')}
               className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-left flex items-center justify-between text-xs transition"
             >
               <div>
@@ -232,7 +290,7 @@ export default function LoginPage() {
             {/* Rajnish */}
             <button
               type="button"
-              onClick={() => authenticateEmail('rajnish.kumar@apnibus.com')}
+              onClick={() => processAuthenticatedEmail('rajnish.kumar@apnibus.com')}
               className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 text-left flex items-center justify-between text-xs transition"
             >
               <div>
@@ -246,4 +304,11 @@ export default function LoginPage() {
       </div>
     </div>
   );
+}
+
+declare global {
+  interface Window {
+    google?: any;
+    handleGoogleCallback?: any;
+  }
 }
