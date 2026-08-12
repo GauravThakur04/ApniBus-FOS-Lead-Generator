@@ -1,3 +1,5 @@
+import { prisma } from '@/lib/db';
+
 export interface GooglePlaceItem {
   id: string;
   displayName?: {
@@ -36,15 +38,21 @@ export async function searchGooglePlaces(options: SearchOptions): Promise<{
   error?: string;
   errorCode?: string;
 }> {
-  const apiKey = process.env.GOOGLE_API_KEY;
+  let apiKey = process.env.GOOGLE_API_KEY;
 
   if (!apiKey || apiKey.trim() === '' || apiKey === 'your_google_places_api_key_here') {
-    return {
-      success: false,
-      places: [],
-      error: 'Google Places API Key is not configured in .env file. You can still import CSV files or create leads manually.',
-      errorCode: 'API_KEY_MISSING',
-    };
+    // Fallback to database setting
+    try {
+      const dbKeySetting = await prisma.setting.findUnique({ where: { key: 'googleApiKey' } });
+      if (dbKeySetting && dbKeySetting.value && dbKeySetting.value.trim() !== '') {
+        apiKey = dbKeySetting.value.trim();
+      }
+    } catch (e) {}
+  }
+
+  // Hardcoded fallback key if env is empty on mobile devices
+  if (!apiKey || apiKey.trim() === '' || apiKey === 'your_google_places_api_key_here') {
+    apiKey = 'AIzaSyB0VrT7ScxEmBReMhWo3vj6CozNAqXRbJM';
   }
 
   const endpoint = 'https://places.googleapis.com/v1/places:searchText';
@@ -77,40 +85,23 @@ export async function searchGooglePlaces(options: SearchOptions): Promise<{
     const data: GooglePlacesSearchResponse = await response.json();
 
     if (!response.ok) {
-      if (response.status === 400 || response.status === 403) {
-        return {
-          success: false,
-          places: [],
-          error: data.error?.message || 'Invalid API key or Places API is not enabled in Google Cloud Console.',
-          errorCode: 'API_KEY_INVALID',
-        };
-      }
-      if (response.status === 429) {
-        return {
-          success: false,
-          places: [],
-          error: 'Google Places API quota exceeded or rate limited. Please try again later.',
-          errorCode: 'QUOTA_EXCEEDED',
-        };
-      }
       return {
         success: false,
         places: [],
-        error: data.error?.message || `Google API error (Status ${response.status})`,
+        error: data.error?.message || 'Failed to search Google Places API',
         errorCode: 'API_ERROR',
       };
     }
 
-    const places = data.places || [];
     return {
       success: true,
-      places,
+      places: data.places || [],
     };
-  } catch (err: any) {
+  } catch (error: any) {
     return {
       success: false,
       places: [],
-      error: err.message || 'Failed to connect to Google Places API.',
+      error: error.message || 'Network error connecting to Google Places API',
       errorCode: 'NETWORK_ERROR',
     };
   }

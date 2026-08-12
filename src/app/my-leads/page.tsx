@@ -14,15 +14,11 @@ export default function MyLeadsPage() {
 
   const fetchMyLeads = (email: string) => {
     setLoading(true);
-    fetch(`/api/leads?limit=200`)
+    fetch(`/api/leads?email=${encodeURIComponent(email)}&limit=500`)
       .then((res) => res.json())
       .then((data) => {
         const allLeads = data.leads || [];
-        // Filter leads assigned to current executive
-        const myAssigned = allLeads.filter(
-          (l: any) => l.assignedTo && l.assignedTo.email.toLowerCase() === email.toLowerCase()
-        );
-        setLeads(myAssigned);
+        setLeads(allLeads);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -50,28 +46,28 @@ export default function MyLeadsPage() {
   return (
     <div className="space-y-6">
       {/* Title Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 dark-card p-6 rounded-2xl border border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="font-heading text-2xl font-black text-white tracking-tight">My Workspace Leads</h1>
-            <span className="text-xs font-bold bg-blue-500/20 text-blue-400 px-2.5 py-0.5 rounded-full border border-blue-500/30">
+            <h1 className="font-heading text-2xl font-black text-slate-900 tracking-tight">My Workspace Leads</h1>
+            <span className="text-xs font-black bg-blue-50 text-blue-800 px-3 py-1 rounded-full border border-blue-200">
               {userName}
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Intercity bus operator leads assigned to <strong className="text-white">{userEmail}</strong>
+          <p className="text-xs text-slate-600 mt-1 font-medium">
+            Intercity bus operator leads assigned to <strong className="text-slate-900">{userEmail}</strong>
           </p>
         </div>
 
         <div className="text-right">
-          <span className="text-xs font-bold text-slate-400 block">Assigned Volume</span>
-          <span className="text-2xl font-black text-emerald-400 font-heading">{leads.length} Leads</span>
+          <span className="text-xs font-bold text-slate-500 block">Assigned Volume</span>
+          <span className="text-2xl font-black text-orange-600 font-heading">{leads.length} Leads</span>
         </div>
       </div>
 
       {/* Main Table */}
       {loading ? (
-        <div className="flex items-center justify-center h-64 text-slate-400 font-bold text-xs">
+        <div className="flex items-center justify-center h-64 text-slate-500 font-bold text-xs">
           Loading assigned workspace leads...
         </div>
       ) : (

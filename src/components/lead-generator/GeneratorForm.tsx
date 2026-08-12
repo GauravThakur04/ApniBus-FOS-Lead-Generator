@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Plus, X, AlertTriangle, CheckCircle2, RefreshCw, Bus, Sparkles, Flame, ShieldAlert, CheckSquare, Square } from 'lucide-react';
+import { Search, Plus, X, AlertTriangle, CheckCircle2, RefreshCw, Bus, CheckSquare, Square } from 'lucide-react';
 import { ALL_INDIAN_STATES, NON_SLEEPER_SEARCH_KEYWORDS } from '@/lib/constants';
 
 interface StateCityData {
@@ -89,7 +89,7 @@ export function GeneratorForm({ onSearchSuccess }: GeneratorFormProps) {
   const handleRunSearch = async () => {
     const targetCity = useCustomCity ? customCity.trim() : selectedCity;
     if (!selectedState || !targetCity || selectedKeywords.length === 0) {
-      setErrorMessage('Please select State, City, and at least 1 Non-Sleeper Bus Keyword.');
+      setErrorMessage('Please select State, City, and at least 1 Bus Keyword.');
       return;
     }
 
@@ -114,9 +114,11 @@ export function GeneratorForm({ onSearchSuccess }: GeneratorFormProps) {
       }
 
       setSearchResult(data);
-      if (onSearchSuccess) onSearchSuccess(data);
+      if (onSearchSuccess) {
+        onSearchSuccess(data);
+      }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An error occurred during search.');
+      setErrorMessage(err.message || 'Error occurred while searching Google Places API.');
     } finally {
       setIsSearching(false);
     }
@@ -124,26 +126,14 @@ export function GeneratorForm({ onSearchSuccess }: GeneratorFormProps) {
 
   return (
     <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 gap-2">
-        <div>
-          <h2 className="font-heading font-black text-xl text-slate-900 flex items-center gap-2">
-            <Bus className="w-5 h-5 text-orange-500" />
-            <span>Non-Sleeper Bus Lead Generator (ApniBus POS Target)</span>
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Discover Stage Carriage, Seater Route &amp; Roadways bus operators using Google Places API
-          </p>
-        </div>
-        <span className="text-xs font-black bg-emerald-50 text-emerald-800 px-3 py-1 rounded-full border border-emerald-200">
-          Targeting Non-Sleeper Seater Buses Only
-        </span>
-      </div>
-
-      <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs flex items-center gap-2 text-amber-900 font-medium">
-        <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
-        <span>
-          <strong>ApniBus POS Target Rule:</strong> Sleeper buses rely on online OTAs (redBus). Non-sleeper/stage carriage route buses are heavily prioritized (+25 score boost) while sleeper buses are penalized (-35 points).
-        </span>
+      <div className="border-b border-slate-100 pb-4">
+        <h2 className="font-heading font-black text-xl text-slate-900 flex items-center gap-2">
+          <Bus className="w-5 h-5 text-orange-500" />
+          <span>Intercity Bus Lead Generator</span>
+        </h2>
+        <p className="text-xs text-slate-500 mt-0.5 font-medium">
+          Discover Stage Carriage, Seater Route &amp; Roadways bus operators using Google Places API
+        </p>
       </div>
 
       {errorMessage && (
@@ -155,9 +145,9 @@ export function GeneratorForm({ onSearchSuccess }: GeneratorFormProps) {
 
       {/* Territory Selection Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* State Selection (ALL 28 States & 8 UTs) */}
+        {/* State Selection */}
         <div className="space-y-1.5">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Target State (All Indian States &amp; UTs)</label>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Target State</label>
           <select
             value={selectedState}
             onChange={(e) => handleStateChange(e.target.value)}
@@ -208,28 +198,29 @@ export function GeneratorForm({ onSearchSuccess }: GeneratorFormProps) {
         </div>
       </div>
 
-      {/* Keywords Selection (High-Intent Non-Sleeper) */}
+      {/* Keywords Selection */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">
           <label className="text-xs font-black text-slate-900 uppercase tracking-wide block">
-            Target Non-Sleeper Keywords ({selectedKeywords.length} Selected)
+            Target Search Keywords ({selectedKeywords.length} Selected)
           </label>
 
           <div className="flex items-center gap-3 text-xs font-bold">
             <button
               type="button"
               onClick={selectAllKeywords}
-              className="text-blue-600 hover:underline flex items-center gap-1"
+              className="text-orange-600 hover:text-orange-700 flex items-center gap-1 font-extrabold"
             >
               <CheckSquare className="w-3.5 h-3.5" />
-              <span>Select All High-Intent Keywords</span>
+              <span>Select All Keywords</span>
             </button>
+            <span className="text-slate-300">|</span>
             <button
               type="button"
               onClick={clearAllKeywords}
-              className="text-slate-400 hover:text-slate-600"
+              className="text-slate-500 hover:text-slate-700 font-medium"
             >
-              Clear
+              Clear All
             </button>
           </div>
         </div>
@@ -243,35 +234,36 @@ export function GeneratorForm({ onSearchSuccess }: GeneratorFormProps) {
                 key={kw}
                 type="button"
                 onClick={() => toggleKeyword(kw)}
-                className={`px-3 py-2 rounded-xl text-xs font-extrabold transition border flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
                   isSelected
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                 }`}
               >
+                {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-orange-400" /> : <Square className="w-3.5 h-3.5 text-slate-400" />}
                 <span>{kw}</span>
-                {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-blue-200" />}
               </button>
             );
           })}
         </div>
 
         {/* Custom Keyword Input */}
-        <div className="flex gap-2 pt-1">
+        <div className="flex items-center gap-2 pt-1">
           <input
             type="text"
-            placeholder="Add custom non-sleeper keyword (e.g. ordinary bus stand)..."
+            placeholder="Add custom bus search keyword..."
             value={customKeyword}
             onChange={(e) => setCustomKeyword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomKeyword())}
-            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500"
+            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-500"
           />
           <button
             type="button"
             onClick={addCustomKeyword}
-            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold border border-slate-200"
+            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center gap-1 transition"
           >
-            Add Keyword
+            <Plus className="w-3.5 h-3.5 text-orange-400" />
+            <span>Add Keyword</span>
           </button>
         </div>
       </div>
@@ -281,40 +273,41 @@ export function GeneratorForm({ onSearchSuccess }: GeneratorFormProps) {
         type="button"
         onClick={handleRunSearch}
         disabled={isSearching}
-        className="w-full py-4 bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600 text-white font-black rounded-xl text-sm uppercase tracking-wider transition shadow-md flex items-center justify-center gap-2"
+        className="w-full py-4 bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
       >
         {isSearching ? (
           <>
-            <RefreshCw className="w-5 h-5 animate-spin" />
-            <span>Searching Google Places across {selectedKeywords.length} Non-Sleeper Keywords...</span>
+            <RefreshCw className="w-4 h-4 animate-spin text-white" />
+            <span>Searching Google Places across {selectedKeywords.length} Keywords...</span>
           </>
         ) : (
           <>
-            <Search className="w-5 h-5" />
-            <span>Generate Non-Sleeper Bus Leads Now ({selectedKeywords.length} Keywords Active)</span>
+            <Search className="w-4 h-4 text-white" />
+            <span>Generate Bus Leads Now ({selectedKeywords.length} Keywords Active)</span>
           </>
         )}
       </button>
 
-      {/* Result Alert Box */}
+      {/* Search Result Summary Card */}
       {searchResult && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-2">
-          <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-2 text-xs">
+          <div className="flex items-center gap-2 text-emerald-800 font-black text-sm">
             <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-            <span>Search Completed Successfully!</span>
+            <span>Lead Generation Run Completed!</span>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-center text-xs pt-1">
-            <div className="bg-white p-2 rounded-xl border border-emerald-100">
-              <span className="text-slate-500 block text-[10px]">Total Found</span>
-              <span className="font-extrabold text-slate-900 text-base">{searchResult.summary.totalFound}</span>
+
+          <div className="grid grid-cols-3 gap-2 pt-1 font-bold text-slate-700">
+            <div className="bg-white p-2.5 rounded-xl border border-emerald-100 text-center">
+              <span className="text-[10px] text-slate-400 uppercase block font-bold">Places Found</span>
+              <span className="text-base font-black text-slate-900 font-heading">{searchResult.resultsFound}</span>
             </div>
-            <div className="bg-white p-2 rounded-xl border border-emerald-100">
-              <span className="text-slate-500 block text-[10px]">New Leads</span>
-              <span className="font-extrabold text-emerald-600 text-base">{searchResult.summary.newLeadsCount}</span>
+            <div className="bg-white p-2.5 rounded-xl border border-emerald-100 text-center">
+              <span className="text-[10px] text-slate-400 uppercase block font-bold">New Saved</span>
+              <span className="text-base font-black text-emerald-600 font-heading">{searchResult.newLeads}</span>
             </div>
-            <div className="bg-white p-2 rounded-xl border border-emerald-100">
-              <span className="text-slate-500 block text-[10px]">Duplicates Skipped</span>
-              <span className="font-extrabold text-amber-600 text-base">{searchResult.summary.duplicatesSkipped}</span>
+            <div className="bg-white p-2.5 rounded-xl border border-emerald-100 text-center">
+              <span className="text-[10px] text-slate-400 uppercase block font-bold">Duplicates</span>
+              <span className="text-base font-black text-amber-600 font-heading">{searchResult.duplicates}</span>
             </div>
           </div>
         </div>
