@@ -3,13 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { LeadsTable } from '@/components/leads/LeadsTable';
 import { LeadDetailDrawer } from '@/components/leads/LeadDetailDrawer';
-import { Plus, Download, Shield, User } from 'lucide-react';
+import { Plus, Download, Shield, User, Crown } from 'lucide-react';
 import Link from 'next/link';
 
 export default function LeadsPage() {
-  const [userEmail, setUserEmail] = useState('admin@apnibus.in');
-  const [userRole, setUserRole] = useState('ADMIN');
-  const [userName, setUserName] = useState('Admin User');
+  const [userEmail, setUserEmail] = useState('gaurav.thakur@apnibus.com');
+  const [userRole, setUserRole] = useState('SUPER_ADMIN');
+  const [userName, setUserName] = useState('Gaurav Thakur');
 
   const [leads, setLeads] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -32,9 +32,9 @@ export default function LeadsPage() {
   };
 
   useEffect(() => {
-    const savedEmail = localStorage.getItem('userEmail') || 'admin@apnibus.in';
-    const savedRole = localStorage.getItem('userRole') || 'ADMIN';
-    const savedName = localStorage.getItem('userName') || 'Admin User';
+    const savedEmail = localStorage.getItem('userEmail') || 'gaurav.thakur@apnibus.com';
+    const savedRole = localStorage.getItem('userRole') || 'SUPER_ADMIN';
+    const savedName = localStorage.getItem('userName') || 'Gaurav Thakur';
 
     setUserEmail(savedEmail);
     setUserRole(savedRole);
@@ -43,9 +43,9 @@ export default function LeadsPage() {
     fetchLeads(savedEmail, savedRole);
 
     const handleStorage = () => {
-      const e = localStorage.getItem('userEmail') || 'admin@apnibus.in';
-      const r = localStorage.getItem('userRole') || 'ADMIN';
-      const n = localStorage.getItem('userName') || 'Admin User';
+      const e = localStorage.getItem('userEmail') || 'gaurav.thakur@apnibus.com';
+      const r = localStorage.getItem('userRole') || 'SUPER_ADMIN';
+      const n = localStorage.getItem('userName') || 'Gaurav Thakur';
 
       setUserEmail(e);
       setUserRole(r);
@@ -57,61 +57,49 @@ export default function LeadsPage() {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  const isAdmin = userRole === 'ADMIN' || userEmail === 'admin@apnibus.in';
+  const isAdmin =
+    userRole === 'ADMIN' ||
+    userRole === 'SUPER_ADMIN' ||
+    userEmail === 'gaurav.thakur@apnibus.com' ||
+    userEmail === 'arvind.ranjan@apnibus.com' ||
+    userEmail === 'admin@apnibus.in';
 
   return (
     <div className="space-y-6">
-      {/* Title & Actions */}
+      {/* Title Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="font-heading text-2xl font-black text-slate-900 tracking-tight">
-              {isAdmin ? 'Master Intercity Lead Portal' : `${userName}'s Private Lead Portal`}
+              {isAdmin ? 'Master Sales Lead Directory' : 'Workspace Leads'}
             </h1>
-            <span
-              className={`text-xs font-black px-3 py-1 rounded-full border ${
-                isAdmin
-                  ? 'bg-blue-50 text-blue-800 border-blue-200'
-                  : 'bg-orange-50 text-orange-800 border-orange-200'
-              }`}
-            >
-              {isAdmin ? '👑 ADMIN MASTER VIEW' : `👤 ${userRole} WORKSPACE`}
+            <span className="text-xs font-black bg-amber-50 text-amber-900 px-3 py-1 rounded-full border border-amber-200 flex items-center gap-1">
+              <Crown className="w-3 h-3 text-amber-600" />
+              <span>{userName} ({isAdmin ? 'SUPER ADMIN VIEW' : 'MANAGER VIEW'})</span>
             </span>
           </div>
-
-          <p className="text-xs text-slate-500 mt-1 font-medium">
+          <p className="text-xs text-slate-600 mt-1 font-medium">
             {isAdmin
-              ? `Master database view: ${total} Bus Operators across all territories (Generate & Assign Leads)`
-              : `Strictly isolated workspace: Showing ${total} leads assigned to ${userName} (${userEmail})`}
+              ? 'Showing ALL generated intercity bus operator leads in database. Assign leads to Sonu, Tarun, or Rajnish below.'
+              : `Intercity bus operator leads assigned to ${userName}`}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          {isAdmin && (
-            <>
-              <Link
-                href="/import-export"
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 transition flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export / Import CSV</span>
-              </Link>
-              <Link
-                href="/lead-generator"
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600 text-white text-xs font-black rounded-xl transition shadow-xs flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Find New Leads</span>
-              </Link>
-            </>
-          )}
+          <Link
+            href="/lead-generator"
+            className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Generate New Leads</span>
+          </Link>
         </div>
       </div>
 
       {/* Main Table */}
       {loading ? (
         <div className="flex items-center justify-center h-64 text-slate-500 font-bold text-xs">
-          Loading portal workspace leads...
+          Loading master bus operator leads...
         </div>
       ) : (
         <LeadsTable

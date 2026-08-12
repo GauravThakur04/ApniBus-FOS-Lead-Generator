@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
+const ADMIN_EMAILS = [
+  'gaurav.thakur@apnibus.com',
+  'arvind.ranjan@apnibus.com',
+  'admin@apnibus.in',
+];
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -20,17 +26,21 @@ export async function GET(req: Request) {
 
     const where: any = {};
 
-    // STRICT ROLE ISOLATION: If not ADMIN (e.g. Sonu, Tarun, Rajnish), FORCE assignedToId to match the manager's user ID!
-    if (userRole !== 'ADMIN' && userEmail && userEmail !== 'admin@apnibus.in') {
+    const isAdmin =
+      userRole === 'ADMIN' ||
+      userRole === 'SUPER_ADMIN' ||
+      (userEmail && ADMIN_EMAILS.includes(userEmail.toLowerCase()));
+
+    // STRICT ROLE ISOLATION: Non-admin managers (Sonu, Tarun, Rajnish) see ONLY their assigned leads
+    if (!isAdmin && userEmail) {
       const user = await prisma.user.findUnique({ where: { email: userEmail } });
       if (user) {
         where.assignedToId = user.id;
       } else {
-        // Unknown user: return empty set
         return NextResponse.json({ leads: [], pagination: { total: 0, page, limit, totalPages: 0 } });
       }
     } else {
-      // ADMIN mode: allow filtering by assignedToId if specified
+      // ADMIN & SUPER ADMIN mode: Show ALL leads (both Unassigned & Assigned)
       if (assignedToId && assignedToId !== 'ALL') {
         if (assignedToId === 'UNASSIGNED') {
           where.assignedToId = null;
@@ -49,10 +59,11 @@ export async function GET(req: Request) {
     if (search && search.trim() !== '') {
       const q = search.trim();
       where.OR = [
-        { businessName: { contains: q } },
-        { phone: { contains: q } },
-        { city: { contains: q } },
-        { address: { contains: q } },
+        { businessName: { contains: q, mode: 'insensitive' } },
+        { phone: { contains: q, mode: 'insensitive' } },
+        { city: { contains: q, mode: 'insensitive' } },
+        { state: { contains: q, mode: 'insensitive' } },
+        { searchKeyword: { contains: q, mode: 'insensitive' } },
       ];
     }
 
@@ -60,14 +71,20 @@ export async function GET(req: Request) {
 
     const leads = await prisma.lead.findMany({
       where,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      skip: (page - 1) * limit,
       include: {
         assignedTo: {
-          select: { id: true, name: true, email: true, empId: true, designation: true },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            empId: true,
+            designation: true,
+          },
         },
       },
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
     });
 
     return NextResponse.json({
