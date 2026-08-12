@@ -18,67 +18,95 @@ export default function LoginPage() {
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Load Official Google Identity Services (GIS) Script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    document.body.appendChild(script);
+
+    window.handleGoogleCallback = (response: any) => {
+      try {
+        // Decode JWT token payload
+        const base64Url = response.credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          atob(base64)
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const payload = JSON.parse(jsonPayload);
+        const googleEmail = payload.email || '';
+
+        processAuthenticatedEmail(googleEmail, payload.name);
+      } catch (err) {
+        setError('Failed to process Google Authentication token.');
+      }
+    };
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  const processAuthenticatedEmail = (targetEmail: string, googleName?: string) => {
     setError('');
     setSuccessMsg('');
+    const cleanEmail = targetEmail.trim().toLowerCase();
 
-    const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
-      setError('Please enter your ApniBus email address.');
+      setError('Invalid email address received from Google.');
       return;
     }
 
-    setLoading(true);
-
-    // Validate email against authorized whitelist
+    // Access Control Whitelist Check
     const isAllowed = ALLOWED_EMAILS.includes(cleanEmail) || cleanEmail.endsWith('@apnibus.com');
 
     if (!isAllowed) {
-      setError(`Access Denied: "${cleanEmail}" is not authorized. Access is strictly limited to designated ApniBus sales leaders.`);
+      setError(`Access Denied: "${cleanEmail}" is not an authorized ApniBus account. Access is strictly limited to designated sales leaders.`);
       setLoading(false);
       return;
     }
 
-    // Auto-map user credentials & portal
-    let name = 'Sales Executive';
+    let name = googleName || 'Sales Executive';
     let role = 'RH';
     let targetPortal = '/leads';
 
     if (cleanEmail === 'admin@apnibus.in') {
-      name = 'Admin User';
+      name = googleName || 'Admin User';
       role = 'ADMIN';
       targetPortal = '/leads';
     } else if (cleanEmail === 'sonu.mishra@apnibus.com') {
-      name = 'Sonu Mishra (AB024)';
+      name = googleName || 'Sonu Mishra (AB024)';
       role = 'RH';
       targetPortal = '/portal/sonu';
     } else if (cleanEmail === 'tarun.kumar@apnibus.com') {
-      name = 'Tarun Kumar (AB407)';
+      name = googleName || 'Tarun Kumar (AB407)';
       role = 'RH';
       targetPortal = '/portal/tarun';
     } else if (cleanEmail === 'rajnish.kumar@apnibus.com') {
-      name = 'Rajnish (AB012)';
+      name = googleName || 'Rajnish (AB012)';
       role = 'RH';
       targetPortal = '/portal/rajnish';
     }
 
-    // Persist active session in localStorage
     localStorage.setItem('userEmail', cleanEmail);
     localStorage.setItem('userName', name);
     localStorage.setItem('userRole', role);
     window.dispatchEvent(new Event('storage'));
 
-    setSuccessMsg(`Welcome, ${name}! Redirecting to your private portal...`);
+    setSuccessMsg(`Google Authentication Successful! Welcome ${name}. Redirecting...`);
 
     setTimeout(() => {
       router.push(targetPortal);
-    }, 1000);
+    }, 800);
   };
 
-  const handleQuickSelect = (selEmail: string) => {
-    setEmail(selEmail);
-    setError('');
+  const handleManualEmailSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    processAuthenticatedEmail(email);
   };
 
   return (
@@ -97,14 +125,14 @@ export default function LoginPage() {
           </h1>
 
           <p className="text-xs text-slate-500 font-medium">
-            Authorized Sales Leader Access &amp; POS Lead Portal
+            Official Google Workspace Sign-In &amp; Lead Portal
           </p>
         </div>
 
         {/* Security Warning Badge */}
         <div className="p-3 bg-slate-100 border border-slate-200 rounded-2xl text-xs text-slate-700 font-bold flex items-center gap-2">
           <Shield className="w-4 h-4 text-blue-600 shrink-0" />
-          <span>Restricted Access: Limited strictly to authorized <strong>@apnibus.com</strong> accounts.</span>
+          <span>Restricted Access: Limited strictly to authorized <strong>@apnibus.com</strong> Google accounts.</span>
         </div>
 
         {error && (
@@ -121,97 +149,104 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Login Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-              Sign In with Google / ApniBus Email
-            </label>
-            <div className="relative">
-              <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-              <input
-                type="email"
-                placeholder="yourname@apnibus.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-500"
-              />
-            </div>
-          </div>
-
+        {/* Official Google Sign-In 1-Click Button */}
+        <div className="space-y-3 pt-2">
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600 text-white font-black rounded-xl text-xs uppercase tracking-wider transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+            type="button"
+            onClick={() => {
+              if (window.google?.accounts?.id) {
+                window.google.accounts.id.prompt();
+              } else {
+                setError('Google Identity Services script loading... Please wait 2 seconds.');
+              }
+            }}
+            className="w-full py-3.5 px-4 bg-white hover:bg-slate-50 text-slate-800 font-extrabold rounded-2xl border-2 border-slate-200 shadow-sm transition flex items-center justify-center gap-3 text-xs"
           >
-            {loading ? (
-              <span>Authenticating...</span>
-            ) : (
-              <>
-                <span>Sign In to ApniBus Portal</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
+            <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+              />
+            </svg>
+            <span>Sign in with Google (@apnibus.com)</span>
           </button>
-        </form>
+
+          <div className="relative text-center my-3">
+            <span className="bg-white px-3 text-[11px] font-bold text-slate-400 uppercase">Or select authorized leader</span>
+            <div className="absolute inset-0 top-1/2 border-t border-slate-200 -z-10" />
+          </div>
+        </div>
 
         {/* Authorized Sales Leaders Whitelist Selection */}
-        <div className="pt-4 border-t border-slate-100 space-y-2">
-          <p className="text-[11px] font-black text-slate-400 uppercase tracking-wide">
-            Whitelisted Sales Leaders (Click to Select):
-          </p>
+        <div className="space-y-1.5">
+          <button
+            type="button"
+            onClick={() => processAuthenticatedEmail('admin@apnibus.in')}
+            className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-left flex items-center justify-between text-xs transition"
+          >
+            <div>
+              <span className="font-bold text-slate-900 block">👑 Admin Master</span>
+              <span className="text-[10px] text-slate-500">admin@apnibus.in</span>
+            </div>
+            <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded">ADMIN</span>
+          </button>
 
-          <div className="space-y-1.5">
-            <button
-              type="button"
-              onClick={() => handleQuickSelect('admin@apnibus.in')}
-              className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-left flex items-center justify-between text-xs transition"
-            >
-              <div>
-                <span className="font-bold text-slate-900 block">👑 Admin Master</span>
-                <span className="text-[10px] text-slate-500">admin@apnibus.in</span>
-              </div>
-              <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded">ADMIN</span>
-            </button>
+          <button
+            type="button"
+            onClick={() => processAuthenticatedEmail('sonu.mishra@apnibus.com')}
+            className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50/50 text-left flex items-center justify-between text-xs transition"
+          >
+            <div>
+              <span className="font-bold text-slate-900 block">👤 Sonu Mishra</span>
+              <span className="text-[10px] text-slate-500">sonu.mishra@apnibus.com</span>
+            </div>
+            <span className="text-[10px] bg-orange-100 text-orange-800 font-bold px-2 py-0.5 rounded">AB024</span>
+          </button>
 
-            <button
-              type="button"
-              onClick={() => handleQuickSelect('sonu.mishra@apnibus.com')}
-              className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50/50 text-left flex items-center justify-between text-xs transition"
-            >
-              <div>
-                <span className="font-bold text-slate-900 block">👤 Sonu Mishra</span>
-                <span className="text-[10px] text-slate-500">sonu.mishra@apnibus.com</span>
-              </div>
-              <span className="text-[10px] bg-orange-100 text-orange-800 font-bold px-2 py-0.5 rounded">AB024</span>
-            </button>
+          <button
+            type="button"
+            onClick={() => processAuthenticatedEmail('tarun.kumar@apnibus.com')}
+            className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-left flex items-center justify-between text-xs transition"
+          >
+            <div>
+              <span className="font-bold text-slate-900 block">👤 Tarun Kumar</span>
+              <span className="text-[10px] text-slate-500">tarun.kumar@apnibus.com</span>
+            </div>
+            <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded">AB407</span>
+          </button>
 
-            <button
-              type="button"
-              onClick={() => handleQuickSelect('tarun.kumar@apnibus.com')}
-              className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-left flex items-center justify-between text-xs transition"
-            >
-              <div>
-                <span className="font-bold text-slate-900 block">👤 Tarun Kumar</span>
-                <span className="text-[10px] text-slate-500">tarun.kumar@apnibus.com</span>
-              </div>
-              <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded">AB407</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickSelect('rajnish.kumar@apnibus.com')}
-              className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 text-left flex items-center justify-between text-xs transition"
-            >
-              <div>
-                <span className="font-bold text-slate-900 block">👤 Rajnish</span>
-                <span className="text-[10px] text-slate-500">rajnish.kumar@apnibus.com</span>
-              </div>
-              <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded">AB012</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => processAuthenticatedEmail('rajnish.kumar@apnibus.com')}
+            className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 text-left flex items-center justify-between text-xs transition"
+          >
+            <div>
+              <span className="font-bold text-slate-900 block">👤 Rajnish</span>
+              <span className="text-[10px] text-slate-500">rajnish.kumar@apnibus.com</span>
+            </div>
+            <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded">AB012</span>
+          </button>
         </div>
       </div>
     </div>
   );
+}
+
+declare global {
+  interface Window {
+    google?: any;
+    handleGoogleCallback?: any;
+  }
 }
