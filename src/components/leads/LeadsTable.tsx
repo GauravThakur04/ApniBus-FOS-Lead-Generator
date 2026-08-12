@@ -20,6 +20,11 @@ import {
   Clock,
   Edit3,
   X,
+  Users,
+  Briefcase,
+  Layers,
+  ArrowRightLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { ALL_INDIAN_STATES } from '@/lib/constants';
 
@@ -74,9 +79,12 @@ export function LeadsTable({
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   const [visitedMapIds, setVisitedMapIds] = useState<string[]>([]);
 
+  // Main View Mode Tab: 'ALL' | 'UNASSIGNED' | 'ASSIGNED'
+  const [viewModeTab, setViewModeTab] = useState<'ALL' | 'UNASSIGNED' | 'ASSIGNED'>('ALL');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [stateFilter, setStateFilter] = useState('ALL');
-  const [assignedFilter, setAssignedFilter] = useState('ALL');
+  const [assignedLeaderFilter, setAssignedLeaderFilter] = useState('ALL');
   const [tempFilter, setTempFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [mapsVisitedFilter, setMapsVisitedFilter] = useState('ALL');
@@ -171,6 +179,16 @@ export function LeadsTable({
     return '';
   };
 
+  // Counts for Top Tab Bar
+  const totalCount = leadsList.length;
+  const unassignedCount = leadsList.filter((l) => getLeaderSelectValue(l) === '').length;
+  const assignedCount = leadsList.filter((l) => getLeaderSelectValue(l) !== '').length;
+
+  // Breakdown count per leader for Assigned Hub Header
+  const getLeaderAssignedCount = (leaderId: string) => {
+    return leadsList.filter((l) => getLeaderSelectValue(l) === leaderId).length;
+  };
+
   // Quick Lead Category / Priority Change (1-Tap)
   const handleCategoryChange = async (leadId: string, newCategory: 'HOT' | 'WARM' | 'COLD') => {
     setLeadsList((prev) =>
@@ -248,9 +266,9 @@ export function LeadsTable({
   };
 
   // Quick Assignment Change (1-Tap)
-  const handleAssignLeader = async (leadId: string, assignedToId: string | null) => {
+  const handleAssignLeader = async (leadId: string, targetLeaderId: string | null) => {
     const selectedLeader = leaders.find(
-      (l) => l.id === assignedToId || l.email === assignedToId || l.empId === assignedToId
+      (l) => l.id === targetLeaderId || l.email === targetLeaderId || l.empId === targetLeaderId
     );
 
     setLeadsList((prev) =>
@@ -274,7 +292,7 @@ export function LeadsTable({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assignedToId: selectedLeader ? selectedLeader.id : null }),
       });
-      setToastMessage(selectedLeader ? `Assigned lead to ${selectedLeader.name}!` : 'Lead unassigned.');
+      setToastMessage(selectedLeader ? `Assigned lead to ${selectedLeader.name}!` : 'Lead moved to Unassigned Pool.');
       setTimeout(() => setToastMessage(''), 2500);
       if (onQuickStatusChange) onQuickStatusChange();
     } catch (err) {
@@ -317,10 +335,10 @@ export function LeadsTable({
     setSelectedLeadIds([]);
   };
 
-  const handleBulkAssign = async (assignedToId: string) => {
+  const handleBulkAssign = async (targetLeaderId: string) => {
     if (selectedLeadIds.length === 0) return;
     const selectedLeader = leaders.find(
-      (l) => l.id === assignedToId || l.email === assignedToId || l.empId === assignedToId
+      (l) => l.id === targetLeaderId || l.email === targetLeaderId || l.empId === targetLeaderId
     );
 
     setLeadsList((prev) =>
@@ -380,6 +398,13 @@ export function LeadsTable({
 
   // Filter Logic
   const filteredLeads = leadsList.filter((lead) => {
+    const activeAssignedId = getLeaderSelectValue(lead);
+
+    // Tab 1: Unassigned Pool
+    if (viewModeTab === 'UNASSIGNED' && activeAssignedId !== '') return false;
+    // Tab 2: Assigned Leads Control Hub
+    if (viewModeTab === 'ASSIGNED' && activeAssignedId === '') return false;
+
     const displayTitle = formatDisplayBusinessName(lead.businessName, lead.searchKeyword, lead.city);
     if (searchTerm.trim() !== '') {
       const q = searchTerm.toLowerCase();
@@ -398,11 +423,8 @@ export function LeadsTable({
     if (tempFilter !== 'ALL' && lead.leadTemperature !== tempFilter) return false;
     if (statusFilter !== 'ALL' && lead.status !== statusFilter) return false;
 
-    const activeAssignedId = getLeaderSelectValue(lead);
-    if (assignedFilter === 'UNASSIGNED' && activeAssignedId !== '') return false;
-    if (assignedFilter === 'ASSIGNED' && activeAssignedId === '') return false;
-    if (assignedFilter !== 'ALL' && assignedFilter !== 'UNASSIGNED' && assignedFilter !== 'ASSIGNED') {
-      if (activeAssignedId !== assignedFilter) return false;
+    if (assignedLeaderFilter !== 'ALL') {
+      if (activeAssignedId !== assignedLeaderFilter) return false;
     }
 
     return true;
@@ -422,6 +444,118 @@ export function LeadsTable({
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
+
+      {/* TOP VIEW TABS (ALL LEADS vs UNASSIGNED POOL vs ASSIGNED LEADS CONTROL HUB) */}
+      <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+          <button
+            onClick={() => {
+              setViewModeTab('ALL');
+              setAssignedLeaderFilter('ALL');
+            }}
+            className={`px-4 py-2 rounded-lg text-xs font-black transition flex items-center gap-2 ${
+              viewModeTab === 'ALL'
+                ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Layers className="w-4 h-4 text-blue-600" />
+            <span>All Leads ({totalCount})</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setViewModeTab('UNASSIGNED');
+              setAssignedLeaderFilter('ALL');
+            }}
+            className={`px-4 py-2 rounded-lg text-xs font-black transition flex items-center gap-2 ${
+              viewModeTab === 'UNASSIGNED'
+                ? 'bg-amber-500 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Square className="w-4 h-4" />
+            <span>⚪ Unassigned Pool ({unassignedCount})</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setViewModeTab('ASSIGNED');
+              setAssignedLeaderFilter('ALL');
+            }}
+            className={`px-4 py-2 rounded-lg text-xs font-black transition flex items-center gap-2 ${
+              viewModeTab === 'ASSIGNED'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Briefcase className="w-4 h-4" />
+            <span>🟢 Assigned Hub ({assignedCount})</span>
+          </button>
+        </div>
+
+        {/* Quick Summary Pill Bar */}
+        <div className="flex items-center gap-2 text-xs font-bold px-2 py-1 bg-slate-50 rounded-xl border border-slate-200">
+          <span className="text-slate-500">Active View:</span>
+          <span className="text-slate-900 font-extrabold">
+            {viewModeTab === 'ALL'
+              ? '🌐 Master Directory'
+              : viewModeTab === 'UNASSIGNED'
+              ? '⚪ Unassigned Incoming Pool'
+              : '🟢 Assigned Manager Control Hub'}
+          </span>
+        </div>
+      </div>
+
+      {/* ASSIGNED LEADS HUB - MANAGER BREAKDOWN SUMMARY CARDS */}
+      {viewModeTab === 'ASSIGNED' && (
+        <div className="bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 shadow-xl space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-emerald-400" />
+              <span>Assigned Manager Breakdown — Click to Filter</span>
+            </h3>
+            {assignedLeaderFilter !== 'ALL' && (
+              <button
+                onClick={() => setAssignedLeaderFilter('ALL')}
+                className="text-xs text-orange-400 hover:underline font-bold"
+              >
+                Clear Manager Filter
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+            {leaders.map((leader) => {
+              const count = getLeaderAssignedCount(leader.id);
+              const isFilterActive = assignedLeaderFilter === leader.id;
+
+              return (
+                <div
+                  key={leader.id}
+                  onClick={() => setAssignedLeaderFilter(isFilterActive ? 'ALL' : leader.id)}
+                  className={`p-3 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
+                    isFilterActive
+                      ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg ring-2 ring-emerald-300'
+                      : 'bg-slate-800/80 border-slate-700 hover:bg-slate-800 text-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black truncate">{leader.name}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900/60 font-extrabold text-amber-400">
+                      {formatEmpIdBadge(leader.empId, leader.email)}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-baseline justify-between">
+                    <span className="text-lg font-black">{count}</span>
+                    <span className="text-[10px] font-extrabold opacity-80">Leads</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -505,13 +639,11 @@ export function LeadsTable({
           </select>
 
           <select
-            value={assignedFilter}
-            onChange={(e) => setAssignedFilter(e.target.value)}
+            value={assignedLeaderFilter}
+            onChange={(e) => setAssignedLeaderFilter(e.target.value)}
             className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none"
           >
-            <option value="ALL">All Assignment States</option>
-            <option value="UNASSIGNED">⚪ Unassigned Leads</option>
-            <option value="ASSIGNED">🟢 Assigned Leads</option>
+            <option value="ALL">All Assigned Leaders</option>
             {leaders.map((l) => (
               <option key={l.id} value={l.id}>
                 👤 {l.name} ({formatEmpIdBadge(l.empId, l.email)})
@@ -735,7 +867,7 @@ export function LeadsTable({
                 <th className="py-3 px-4">Location &amp; Phone</th>
                 <th className="py-3 px-4">Priority (HOT/WARM/COLD)</th>
                 <th className="py-3 px-4">Pipeline Status</th>
-                <th className="py-3 px-4">Assigned Leader</th>
+                <th className="py-3 px-4">Assigned Leader (Shift Anytime)</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -892,7 +1024,7 @@ export function LeadsTable({
                         </select>
                       </td>
 
-                      {/* 1-TAP PIPELINE STATUS DROPDOWN (SALE DONE & LOST SUPPORTED) */}
+                      {/* 1-TAP PIPELINE STATUS DROPDOWN */}
                       <td className="py-3 px-4">
                         <select
                           value={lead.status}
@@ -924,14 +1056,14 @@ export function LeadsTable({
                         </select>
                       </td>
 
-                      {/* ASSIGNED LEADER DROPDOWN WITH GUARANTEED LEADERS & FLEXIBLE ID/EMAIL/NAME MATCHING */}
+                      {/* ASSIGNED LEADER DROPDOWN (1-TAP SHIFT / REASSIGNMENT) */}
                       <td className="py-3 px-4">
                         <select
                           value={getLeaderSelectValue(lead)}
                           onChange={(e) => handleAssignLeader(lead.id, e.target.value || null)}
                           className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
                         >
-                          <option value="">⚪ Unassigned</option>
+                          <option value="">⚪ Move to Unassigned Pool</option>
                           {leaders.map((l) => (
                             <option key={l.id} value={l.id}>
                               👤 {l.name} ({formatEmpIdBadge(l.empId, l.email)})
