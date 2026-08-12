@@ -14,8 +14,41 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1. Ensure SearchJob table exists (safe DDL execution)
+    // 1. Ensure Lead & SearchJob tables exist in Supabase
     try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Lead" (
+          "id" TEXT PRIMARY KEY,
+          "placeId" TEXT UNIQUE,
+          "businessName" TEXT NOT NULL,
+          "phone" TEXT,
+          "email" TEXT,
+          "website" TEXT,
+          "address" TEXT,
+          "city" TEXT NOT NULL,
+          "state" TEXT NOT NULL,
+          "country" TEXT NOT NULL DEFAULT 'India',
+          "latitude" DOUBLE PRECISION,
+          "longitude" DOUBLE PRECISION,
+          "googleMapsUrl" TEXT,
+          "rating" DOUBLE PRECISION,
+          "reviewCount" INTEGER DEFAULT 0,
+          "source" TEXT NOT NULL DEFAULT 'Google Places',
+          "searchKeyword" TEXT,
+          "searchKeywordsHistory" TEXT,
+          "leadScore" INTEGER NOT NULL DEFAULT 0,
+          "leadTemperature" TEXT NOT NULL DEFAULT 'COLD',
+          "status" TEXT NOT NULL DEFAULT 'New',
+          "assignedToId" TEXT REFERENCES "User"("id") ON DELETE SET NULL,
+          "lastContactedAt" TIMESTAMP(3),
+          "nextFollowUpAt" TIMESTAMP(3),
+          "notes" TEXT,
+          "lastFoundAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
       await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "SearchJob" (
           "id" TEXT PRIMARY KEY,
@@ -68,11 +101,10 @@ export async function POST(req: Request) {
     let totalFound = 0;
     let newLeadsCount = 0;
     let duplicateCount = 0;
-    const leadsToInsert: any[] = [];
     const createdLeadsList: any[] = [];
     const errorsList: string[] = [];
 
-    // 5. Fast In-Memory Deduplication & Lead Scoring (0ms CPU latency)
+    // 5. Deduplicate & Save each new lead reliably to Supabase
     for (const resItem of searchResults) {
       const { keyword, places, error } = resItem;
       if (error) {
@@ -89,8 +121,8 @@ export async function POST(req: Request) {
         const phone = p.nationalPhoneNumber || null;
         const website = p.websiteUri || null;
         const address = p.formattedAddress || `${city}, ${state}`;
-        const rating = p.rating || null;
-        const reviewCount = p.userRatingCount || 0;
+        const rating = p.rating ? Number(p.rating) : null;
+        const reviewCount = p.userRatingCount ? Number(p.userRatingCount) : 0;
         const googleMapsUrl = p.googleMapsUri || null;
 
         // In-memory instant duplicate check
@@ -108,53 +140,44 @@ export async function POST(req: Request) {
             address,
           });
 
-          const newLeadObj = {
-            placeId,
-            businessName,
-            phone,
-            website,
-            address,
-            city,
-            state,
-            country: 'India',
-            googleMapsUrl,
-            rating,
-            reviewCount,
-            source: 'Google Places',
-            searchKeyword: keyword,
-            leadScore: score,
-            leadTemperature: temperature,
-            status: 'New',
-            assignedToId: null,
-          };
+          const leadId = `lead-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-          leadsToInsert.push(newLeadObj);
-          createdLeadsList.push(newLeadObj);
+          try {
+            const savedLead = await prisma.lead.create({
+              data: {
+                id: leadId,
+                placeId,
+                businessName,
+                phone,
+                website,
+                address,
+                city,
+                state,
+                country: 'India',
+                googleMapsUrl,
+                rating,
+                reviewCount,
+                source: 'Google Places',
+                searchKeyword: keyword,
+                leadScore: score,
+                leadTemperature: temperature,
+                status: 'New',
+                assignedToId: null,
+              },
+            });
 
-          existingPlacesSet.add(placeId);
-          if (phone) existingPhonesSet.add(phone);
+            existingPlacesSet.add(placeId);
+            if (phone) existingPhonesSet.add(phone);
 
-          kwNewLeads += 1;
-          newLeadsCount += 1;
+            kwNewLeads += 1;
+            newLeadsCount += 1;
+            createdLeadsList.push(savedLead);
+          } catch (createErr: any) {
+            console.error(`Failed to insert lead "${businessName}":`, createErr.message);
+          }
         } else {
           kwDuplicates += 1;
           duplicateCount += 1;
-        }
-      }
-    }
-
-    // 6. BULK INSERT ALL LEADS IN 1 SINGLE QUERY (Sub-second DB insertion)
-    if (leadsToInsert.length > 0) {
-      try {
-        await prisma.lead.createMany({
-          data: leadsToInsert,
-          skipDuplicates: true,
-        });
-      } catch (insertErr) {
-        for (const leadObj of leadsToInsert) {
-          try {
-            await prisma.lead.create({ data: leadObj });
-          } catch (e) {}
         }
       }
     }
