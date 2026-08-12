@@ -103,12 +103,8 @@ export async function POST(req: Request) {
       for (const p of places) {
         const placeId = p.id || `custom-${Date.now()}-${Math.random()}`;
         
-        // CLEAN TRAVEL BRAND NAME RESOLUTION (NO places/ChIJ RESOURCE STRINGS)
-        let rawName = p.displayName?.text;
-        if (!rawName || rawName.startsWith('places/') || rawName.includes('ChIJ')) {
-          rawName = `${keyword} (${city} Bus Operator)`;
-        }
-        const businessName = rawName;
+        // EXACT NAME AS WRITTEN ON GOOGLE MAPS BY THE TRAVEL OPERATOR
+        const businessName = p.displayName?.text || keyword;
 
         const phone = p.nationalPhoneNumber || null;
         const website = p.websiteUri || null;

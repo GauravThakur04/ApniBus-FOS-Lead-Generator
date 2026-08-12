@@ -69,7 +69,7 @@ export async function GET(req: Request) {
 
     const total = await prisma.lead.count({ where });
 
-    const rawLeads = await prisma.lead.findMany({
+    const leads = await prisma.lead.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -85,18 +85,6 @@ export async function GET(req: Request) {
           },
         },
       },
-    });
-
-    // Clean up any businessName containing "places/ChIJ..." into human travel titles
-    const leads = rawLeads.map((l) => {
-      let bName = l.businessName;
-      if (!bName || bName.startsWith('places/') || bName.includes('ChIJ')) {
-        bName = `${l.searchKeyword || 'Intercity Bus Operator'} (${l.city} Bus Operator)`;
-      }
-      return {
-        ...l,
-        businessName: bName,
-      };
     });
 
     return NextResponse.json({

@@ -104,7 +104,7 @@ export function LeadsTable({
 
   const formatDisplayBusinessName = (name: string, keyword?: string | null, city?: string) => {
     if (!name || name.startsWith('places/') || name.includes('ChIJ')) {
-      return `${keyword || 'Intercity Bus Operator'} (${city || 'Local'} Bus Operator)`;
+      return keyword || `${city || 'Intercity'} Bus Operator`;
     }
     return name;
   };
