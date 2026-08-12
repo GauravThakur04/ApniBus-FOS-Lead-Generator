@@ -19,12 +19,38 @@ export function AppWrapper({ children }: { children: React.ReactNode }) {
 
     // Check if user session exists in localStorage
     const savedEmail = localStorage.getItem('userEmail');
+    const savedRole = localStorage.getItem('userRole');
+
     if (!savedEmail || savedEmail.trim() === '') {
       setIsAuthenticated(false);
       router.push('/login');
-    } else {
-      setIsAuthenticated(true);
+      return;
     }
+
+    const cleanEmail = savedEmail.toLowerCase().trim();
+
+    // Strict Portal Access Guards for Managers (Sonu, Tarun, Rajnish)
+    if (cleanEmail === 'sonu.mishra@apnibus.com') {
+      if (pathname !== '/portal/sonu' && !pathname.startsWith('/portal/sonu')) {
+        router.push('/portal/sonu');
+        setIsAuthenticated(true);
+        return;
+      }
+    } else if (cleanEmail === 'tarun.kumar@apnibus.com') {
+      if (pathname !== '/portal/tarun' && !pathname.startsWith('/portal/tarun')) {
+        router.push('/portal/tarun');
+        setIsAuthenticated(true);
+        return;
+      }
+    } else if (cleanEmail === 'rajnish.kumar@apnibus.com') {
+      if (pathname !== '/portal/rajnish' && !pathname.startsWith('/portal/rajnish')) {
+        router.push('/portal/rajnish');
+        setIsAuthenticated(true);
+        return;
+      }
+    }
+
+    setIsAuthenticated(true);
   }, [pathname, router]);
 
   // If on login page, render full screen login with no sidebar/header

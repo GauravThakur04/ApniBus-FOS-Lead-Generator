@@ -2,15 +2,26 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { startOfDay, startOfWeek, startOfMonth, subDays, format } from 'date-fns';
 
+const ADMIN_EMAILS = [
+  'gaurav.thakur@apnibus.com',
+  'arvind.ranjan@apnibus.com',
+  'admin@apnibus.in',
+];
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const userRole = searchParams.get('role') || 'ADMIN';
     const userEmail = searchParams.get('email');
 
+    const isAdmin =
+      userRole === 'ADMIN' ||
+      userRole === 'SUPER_ADMIN' ||
+      (userEmail && ADMIN_EMAILS.includes(userEmail.toLowerCase()));
+
     // Build filter based on active role view
     let leadFilter: any = {};
-    if (userRole !== 'ADMIN' && userEmail && userEmail !== 'admin@apnibus.in') {
+    if (!isAdmin && userEmail) {
       const user = await prisma.user.findUnique({ where: { email: userEmail } });
       if (user) {
         leadFilter.assignedToId = user.id;
@@ -41,16 +52,16 @@ export async function GET(req: Request) {
     const assignedLeads = allLeads.filter((l) => l.assignedToId).length;
 
     const contactedLeads = allLeads.filter((l) =>
-      ['Contacted', 'Interested', 'Follow-up', 'Demo Scheduled', 'Demo Completed', 'Converted'].includes(l.status)
+      ['Contacted', 'Interested', 'Follow-up', 'Demo Scheduled', 'Demo Completed', 'Sale Done', 'Converted'].includes(l.status)
     ).length;
     const interestedLeads = allLeads.filter((l) =>
-      ['Interested', 'Demo Scheduled', 'Demo Completed', 'Converted'].includes(l.status)
+      ['Interested', 'Demo Scheduled', 'Demo Completed', 'Sale Done', 'Converted'].includes(l.status)
     ).length;
     const demoScheduled = allLeads.filter((l) => l.status === 'Demo Scheduled').length;
     const demoCompleted = allLeads.filter((l) =>
-      ['Demo Completed', 'Converted'].includes(l.status)
+      ['Demo Completed', 'Sale Done', 'Converted'].includes(l.status)
     ).length;
-    const converted = allLeads.filter((l) => l.status === 'Converted').length;
+    const converted = allLeads.filter((l) => ['Sale Done', 'Converted'].includes(l.status)).length;
     const lost = allLeads.filter((l) => ['Lost', 'Not Interested', 'Invalid'].includes(l.status)).length;
 
     const todaysNewLeads = allLeads.filter((l) => new Date(l.createdAt) >= todayStart).length;
@@ -97,45 +108,27 @@ export async function GET(req: Request) {
     });
     const leadsByStatus = Object.entries(statusMap).map(([status, count]) => ({ status, count }));
 
-    // Chart 5: Leads by city
+    // Chart 5: Leads by city (Top 10)
     const cityMap: Record<string, number> = {};
     allLeads.forEach((l) => {
-      cityMap[l.city] = (cityMap[l.city] || 0) + 1;
+      const key = `${l.city}, ${l.state}`;
+      cityMap[key] = (cityMap[key] || 0) + 1;
     });
-    const leadsByCity = Object.entries(cityMap).map(([city, count]) => ({ city, count }));
+    const leadsByCity = Object.entries(cityMap)
+      .map(([city, count]) => ({ city, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
 
-    // Chart 6: Status Funnel
-    const statusFunnel = [
-      { stage: 'New', count: newLeads },
-      { stage: 'Contacted', count: contactedLeads },
-      { stage: 'Interested', count: interestedLeads },
-      { stage: 'Demo Scheduled', count: demoScheduled },
-      { stage: 'Demo Completed', count: demoCompleted },
-      { stage: 'Converted', count: converted },
-    ];
-
-    // Chart 7: FOS Performance Metrics
-    const fosMap: Record<string, { total: number; converted: number }> = {};
+    // Leader Distribution
+    const leaderMap: Record<string, number> = {};
     allLeads.forEach((l) => {
-      const fosName = l.assignedTo ? l.assignedTo.name : 'Unassigned';
-      if (!fosMap[fosName]) {
-        fosMap[fosName] = { total: 0, converted: 0 };
-      }
-      fosMap[fosName].total += 1;
-      if (l.status === 'Converted') {
-        fosMap[fosName].converted += 1;
-      }
+      const leaderName = l.assignedTo?.name || 'Unassigned';
+      leaderMap[leaderName] = (leaderMap[leaderName] || 0) + 1;
     });
-
-    const leadsByFos = Object.entries(fosMap).map(([name, data]) => ({
-      name,
-      count: data.total,
-      converted: data.converted,
-      conversionRate: data.total > 0 ? Number(((data.converted / data.total) * 100).toFixed(1)) : 0,
-    }));
+    const leadsByLeader = Object.entries(leaderMap).map(([leader, count]) => ({ leader, count }));
 
     return NextResponse.json({
-      kpis: {
+      summary: {
         totalLeads,
         newLeads,
         hotLeads,
@@ -152,10 +145,12 @@ export async function GET(req: Request) {
         todaysNewLeads,
         thisWeeksLeads,
         thisMonthsLeads,
-        contactRate,
-        interestedRate,
-        demoRate,
-        conversionRate,
+        rates: {
+          contactRate,
+          interestedRate,
+          demoRate,
+          conversionRate,
+        },
       },
       charts: {
         last14DaysData,
@@ -163,9 +158,7 @@ export async function GET(req: Request) {
         leadsByTemperature,
         leadsByStatus,
         leadsByCity,
-        statusFunnel,
-        leadsByFos,
-        fosLeadsData: leadsByFos,
+        leadsByLeader,
       },
     });
   } catch (error: any) {
