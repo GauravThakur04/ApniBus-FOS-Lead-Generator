@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, LogOut, Shield, ChevronDown, CheckCircle2, AlertCircle, Crown, ExternalLink } from 'lucide-react';
+import { User, LogOut, Shield, ChevronDown, CheckCircle2, AlertCircle, Crown, ExternalLink, Lock } from 'lucide-react';
 import Link from 'next/link';
 
 export function Header() {
   const [currentUser, setCurrentUser] = useState({
-    name: 'Admin User',
-    email: 'admin@apnibus.in',
-    role: 'ADMIN',
+    name: 'Gaurav Thakur',
+    email: 'gaurav.thakur@apnibus.com',
+    role: 'SUPER_ADMIN',
   });
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [apiConnected, setApiConnected] = useState<boolean | null>(null);
@@ -29,7 +29,11 @@ export function Header() {
       .catch(() => setApiConnected(false));
   }, []);
 
+  const isSuperAdmin = currentUser.email === 'gaurav.thakur@apnibus.com';
+  const isAdmin = isSuperAdmin || currentUser.email === 'arvind.ranjan@apnibus.com' || currentUser.email === 'admin@apnibus.in';
+
   const switchRole = (role: string, name: string, email: string) => {
+    if (!isAdmin) return; // Non-admin users cannot switch portals
     setCurrentUser({ role, name, email });
     localStorage.setItem('userRole', role);
     localStorage.setItem('userEmail', email);
@@ -87,90 +91,97 @@ export function Header() {
 
       {/* Right Side: Role Selector & User Profile */}
       <div className="flex items-center gap-4">
-        {/* Role Quick Switcher */}
-        <div className="relative">
-          <button
-            onClick={() => setShowRoleMenu(!showRoleMenu)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
-          >
-            <Shield className="w-3.5 h-3.5 text-blue-600" />
-            <span>Active Portal: {currentUser.name}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-          </button>
+        {/* Role Quick Switcher (Only Visible to Admin/Super Admin) */}
+        {isAdmin ? (
+          <div className="relative">
+            <button
+              onClick={() => setShowRoleMenu(!showRoleMenu)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-extrabold transition"
+            >
+              <Crown className="w-3.5 h-3.5 text-amber-600" />
+              <span>{isSuperAdmin ? '⚡ Super Admin Access' : `Active Portal: ${currentUser.name}`}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-amber-600" />
+            </button>
 
-          {showRoleMenu && (
-            <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 text-xs max-h-96 overflow-y-auto">
-              <div className="px-3 py-1.5 font-bold text-slate-400 border-b border-slate-100 uppercase text-[10px]">
-                Direct Portal Links (Click to Open)
+            {showRoleMenu && (
+              <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 text-xs max-h-96 overflow-y-auto">
+                <div className="px-3 py-1.5 font-bold text-slate-400 border-b border-slate-100 uppercase text-[10px]">
+                  Super Admin Portal Switcher
+                </div>
+
+                {/* Admin Master Portal Link */}
+                <Link
+                  href="/leads"
+                  onClick={() => switchRole('ADMIN', 'Admin Master', 'admin@apnibus.in')}
+                  className={`w-full text-left px-3.5 py-2.5 hover:bg-blue-50 flex items-center justify-between transition ${
+                    currentUser.email === 'admin@apnibus.in' ? 'font-black text-blue-700 bg-blue-50/70' : 'text-slate-700'
+                  }`}
+                >
+                  <div>
+                    <span className="block font-bold">👑 Admin Master Portal</span>
+                    <span className="text-[10px] text-slate-400">Generate &amp; Assign All Leads</span>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+                </Link>
+
+                <div className="px-3 py-1 font-bold text-orange-600 bg-orange-50/70 text-[10px] uppercase border-y border-slate-100 flex items-center gap-1">
+                  <Crown className="w-3 h-3 text-orange-500" />
+                  <span>Inspect Manager Portals</span>
+                </div>
+
+                {/* Sonu Mishra Direct Link */}
+                <Link
+                  href="/portal/sonu"
+                  onClick={() => switchRole('RH', 'Sonu Mishra (AB024)', 'sonu.mishra@apnibus.com')}
+                  className={`w-full text-left px-3.5 py-2.5 hover:bg-orange-50 flex items-center justify-between transition ${
+                    currentUser.email === 'sonu.mishra@apnibus.com' ? 'font-black text-orange-700 bg-orange-50' : 'text-slate-700'
+                  }`}
+                >
+                  <div>
+                    <span className="block font-bold">👤 Sonu Mishra Portal</span>
+                    <span className="text-[10px] text-slate-400">/portal/sonu (EMP: AB024)</span>
+                  </div>
+                  <span className="text-[10px] bg-orange-100 text-orange-800 px-2 py-0.5 rounded font-black">AB024</span>
+                </Link>
+
+                {/* Tarun Kumar Direct Link */}
+                <Link
+                  href="/portal/tarun"
+                  onClick={() => switchRole('RH', 'Tarun Kumar (AB407)', 'tarun.kumar@apnibus.com')}
+                  className={`w-full text-left px-3.5 py-2.5 hover:bg-blue-50 flex items-center justify-between transition ${
+                    currentUser.email === 'tarun.kumar@apnibus.com' ? 'font-black text-blue-700 bg-blue-50' : 'text-slate-700'
+                  }`}
+                >
+                  <div>
+                    <span className="block font-bold">👤 Tarun Kumar Portal</span>
+                    <span className="text-[10px] text-slate-400">/portal/tarun (EMP: AB407)</span>
+                  </div>
+                  <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-black">AB407</span>
+                </Link>
+
+                {/* Rajnish Direct Link */}
+                <Link
+                  href="/portal/rajnish"
+                  onClick={() => switchRole('RH', 'Rajnish (AB012)', 'rajnish.kumar@apnibus.com')}
+                  className={`w-full text-left px-3.5 py-2.5 hover:bg-purple-50 flex items-center justify-between transition ${
+                    currentUser.email === 'rajnish.kumar@apnibus.com' ? 'font-black text-purple-700 bg-purple-50' : 'text-slate-700'
+                  }`}
+                >
+                  <div>
+                    <span className="block font-bold">👤 Rajnish Portal</span>
+                    <span className="text-[10px] text-slate-400">/portal/rajnish (EMP: AB012)</span>
+                  </div>
+                  <span className="text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-black">AB012</span>
+                </Link>
               </div>
-
-              {/* Admin Master Portal Link */}
-              <Link
-                href="/leads"
-                onClick={() => switchRole('ADMIN', 'Admin User', 'admin@apnibus.in')}
-                className={`w-full text-left px-3.5 py-2.5 hover:bg-blue-50 flex items-center justify-between transition ${
-                  currentUser.email === 'admin@apnibus.in' ? 'font-black text-blue-700 bg-blue-50/70' : 'text-slate-700'
-                }`}
-              >
-                <div>
-                  <span className="block font-bold">👑 Admin Master Portal</span>
-                  <span className="text-[10px] text-slate-400">Generate &amp; Assign All Leads</span>
-                </div>
-                <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
-              </Link>
-
-              <div className="px-3 py-1 font-bold text-orange-600 bg-orange-50/70 text-[10px] uppercase border-y border-slate-100 flex items-center gap-1">
-                <Crown className="w-3 h-3 text-orange-500" />
-                <span>Dedicated Leader Portals</span>
-              </div>
-
-              {/* Sonu Mishra Direct Link */}
-              <Link
-                href="/portal/sonu"
-                onClick={() => switchRole('RH', 'Sonu Mishra (AB024)', 'sonu.mishra@apnibus.com')}
-                className={`w-full text-left px-3.5 py-2.5 hover:bg-orange-50 flex items-center justify-between transition ${
-                  currentUser.email === 'sonu.mishra@apnibus.com' ? 'font-black text-orange-700 bg-orange-50' : 'text-slate-700'
-                }`}
-              >
-                <div>
-                  <span className="block font-bold">👤 Sonu Mishra Portal</span>
-                  <span className="text-[10px] text-slate-400">/portal/sonu (EMP: AB024)</span>
-                </div>
-                <span className="text-[10px] bg-orange-100 text-orange-800 px-2 py-0.5 rounded font-black">AB024</span>
-              </Link>
-
-              {/* Tarun Kumar Direct Link */}
-              <Link
-                href="/portal/tarun"
-                onClick={() => switchRole('RH', 'Tarun Kumar (AB407)', 'tarun.kumar@apnibus.com')}
-                className={`w-full text-left px-3.5 py-2.5 hover:bg-blue-50 flex items-center justify-between transition ${
-                  currentUser.email === 'tarun.kumar@apnibus.com' ? 'font-black text-blue-700 bg-blue-50' : 'text-slate-700'
-                }`}
-              >
-                <div>
-                  <span className="block font-bold">👤 Tarun Kumar Portal</span>
-                  <span className="text-[10px] text-slate-400">/portal/tarun (EMP: AB407)</span>
-                </div>
-                <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-black">AB407</span>
-              </Link>
-
-              {/* Rajnish Direct Link */}
-              <Link
-                href="/portal/rajnish"
-                onClick={() => switchRole('RH', 'Rajnish (AB012)', 'rajnish.kumar@apnibus.com')}
-                className={`w-full text-left px-3.5 py-2.5 hover:bg-purple-50 flex items-center justify-between transition ${
-                  currentUser.email === 'rajnish.kumar@apnibus.com' ? 'font-black text-purple-700 bg-purple-50' : 'text-slate-700'
-                }`}
-              >
-                <div>
-                  <span className="block font-bold">👤 Rajnish Portal</span>
-                  <span className="text-[10px] text-slate-400">/portal/rajnish (EMP: AB012)</span>
-                </div>
-                <span className="text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-black">AB012</span>
-              </Link>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold">
+            <Lock className="w-3.5 h-3.5 text-slate-500" />
+            <span>Assigned Portal</span>
+          </div>
+        )}
 
         {/* User Avatar & Sign Out */}
         <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
