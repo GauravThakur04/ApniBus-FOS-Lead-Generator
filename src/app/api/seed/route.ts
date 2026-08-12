@@ -60,23 +60,10 @@ export async function GET() {
       CREATE TABLE IF NOT EXISTS "LeadActivity" (
         "id" TEXT PRIMARY KEY,
         "leadId" TEXT NOT NULL REFERENCES "Lead"("id") ON DELETE CASCADE,
-        "userId" TEXT REFERENCES "User"("id") ON DELETE SET NULL,
+        "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
         "type" TEXT NOT NULL,
-        "description" TEXT NOT NULL,
-        "metadata" TEXT,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "FollowUp" (
-        "id" TEXT PRIMARY KEY,
-        "leadId" TEXT NOT NULL REFERENCES "Lead"("id") ON DELETE CASCADE,
-        "userId" TEXT REFERENCES "User"("id") ON DELETE SET NULL,
-        "followUpDate" TIMESTAMP(3) NOT NULL,
-        "time" TEXT,
-        "reason" TEXT,
-        "notes" TEXT,
+        "title" TEXT NOT NULL,
+        "description" TEXT,
         "status" TEXT NOT NULL DEFAULT 'Pending',
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -111,39 +98,42 @@ export async function GET() {
     const admin = await prisma.user.upsert({
       where: { email: 'admin@apnibus.in' },
       update: {
-        name: 'Admin User',
+        name: 'Admin Master',
         empId: 'ADMIN',
-        designation: 'Admin User',
+        role: 'SUPER_ADMIN',
+        designation: 'Super Admin',
       },
       create: {
-        name: 'Admin User',
+        name: 'Admin Master',
         email: 'admin@apnibus.in',
         password: 'password123',
-        role: 'ADMIN',
+        role: 'SUPER_ADMIN',
         phone: '+919876543210',
         empId: 'ADMIN',
-        designation: 'Admin User',
+        designation: 'Super Admin',
         active: true,
       },
     });
 
-    // 2. Seed the Designated Leaders
+    // 2. Seed the Designated Leaders (Gaurav Thakur & Arvind Ranjan BOTH Super Admins)
     const leadersData = [
       {
         empId: 'SUPER',
         name: 'Gaurav Thakur',
         email: 'gaurav.thakur@apnibus.com',
         phone: '9999999999',
+        role: 'SUPER_ADMIN',
         designation: 'Super Admin',
         state: 'Haryana',
         cities: 'All India',
       },
       {
-        empId: 'ADMIN_ARVIND',
+        empId: 'SUPER_ARVIND',
         name: 'Arvind Ranjan',
         email: 'arvind.ranjan@apnibus.com',
         phone: '9888888888',
-        designation: 'Admin',
+        role: 'SUPER_ADMIN',
+        designation: 'Super Admin',
         state: 'Haryana',
         cities: 'All India',
       },
@@ -152,6 +142,7 @@ export async function GET() {
         name: 'Sonu Mishra',
         email: 'sonu.mishra@apnibus.com',
         phone: '8750710855',
+        role: 'RH',
         designation: 'Regional Head (RH)',
         state: 'Haryana',
         cities: 'Gurgaon / Haryana',
@@ -161,6 +152,7 @@ export async function GET() {
         name: 'Tarun Kumar',
         email: 'tarun.kumar@apnibus.com',
         phone: '8194815508',
+        role: 'RH',
         designation: 'Regional Head (RH)',
         state: 'Haryana',
         cities: 'Gurgaon / Haryana',
@@ -170,6 +162,7 @@ export async function GET() {
         name: 'Rajnish',
         email: 'rajnish.kumar@apnibus.com',
         phone: '9341643122',
+        role: 'RH',
         designation: 'Regional Head (RH)',
         state: 'Haryana',
         cities: 'Gurgaon / Haryana',
@@ -183,21 +176,20 @@ export async function GET() {
         update: {
           name: l.name,
           phone: l.phone,
-          empId: l.empId,
+          role: l.role,
           designation: l.designation,
-          state: l.state,
-          cities: l.cities,
+          empId: l.empId,
         },
         create: {
+          empId: l.empId,
           name: l.name,
           email: l.email,
           phone: l.phone,
-          password: 'password123',
-          role: 'FOS',
-          empId: l.empId,
+          role: l.role,
           designation: l.designation,
           state: l.state,
           cities: l.cities,
+          password: 'password123',
           active: true,
         },
       });
@@ -206,7 +198,7 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      message: 'Supabase tables created & database seeded successfully!',
+      message: 'Database schema and sales leaders pre-seeded successfully!',
       admin,
       leaders: seededLeaders,
     });
