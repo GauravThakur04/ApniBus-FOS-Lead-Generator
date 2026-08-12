@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Shield, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
+import { Shield, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-// STRICT AUTHORIZED GOOGLE EMAIL MATRIX
+// STRICT AUTHORIZED GOOGLE EMAIL MATRIX (GAURAV & ARVIND BOTH SUPER ADMIN)
 const AUTHORIZED_USER_MAP: Record<
   string,
   { name: string; role: string; empId: string; defaultPortal: string }
@@ -17,13 +17,13 @@ const AUTHORIZED_USER_MAP: Record<
   },
   'arvind.ranjan@apnibus.com': {
     name: 'Arvind Ranjan',
-    role: 'ADMIN',
-    empId: 'ADMIN_ARVIND',
+    role: 'SUPER_ADMIN',
+    empId: 'SUPER_ARVIND',
     defaultPortal: '/leads',
   },
   'admin@apnibus.in': {
     name: 'Admin Master',
-    role: 'ADMIN',
+    role: 'SUPER_ADMIN',
     empId: 'ADMIN',
     defaultPortal: '/leads',
   },
@@ -51,11 +51,9 @@ export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
-  // Load Official Google Identity Services Script
   useEffect(() => {
     window.handleGoogleCallback = (response: any) => {
       try {
@@ -101,7 +99,6 @@ export default function LoginPage() {
     };
   }, [googleClientId]);
 
-  // Handle Google OAuth Verified Email
   const processGoogleLogin = (googleEmail: string, googleName?: string) => {
     setError('');
     setSuccessMsg('');
@@ -112,11 +109,9 @@ export default function LoginPage() {
       setError(
         `⛔ ACCESS DENIED: "${cleanEmail}" is NOT authorized. Access is strictly locked to approved ApniBus sales leaders.`
       );
-      setLoading(false);
       return;
     }
 
-    setLoading(true);
     const userName = googleName || userInfo.name;
 
     localStorage.setItem('userEmail', cleanEmail);
@@ -124,7 +119,7 @@ export default function LoginPage() {
     localStorage.setItem('userRole', userInfo.role);
     window.dispatchEvent(new Event('storage'));
 
-    setSuccessMsg(`Google Authentication Verified! Welcome ${userName}. Redirecting...`);
+    setSuccessMsg(`Google Account Verified! Welcome ${userName}. Redirecting...`);
 
     setTimeout(() => {
       router.push(userInfo.defaultPortal);
@@ -142,7 +137,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4">
       <div className="w-full max-w-sm bg-white rounded-3xl p-8 border border-slate-200 shadow-2xl space-y-6 text-center">
-        {/* Brand Header */}
         <div className="space-y-2">
           <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200 p-2 mx-auto flex items-center justify-center shadow-md">
             <img src="/apnibus.png" alt="ApniBus Logo" className="w-full h-full object-contain" />
@@ -159,7 +153,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Security Info Badge */}
         <div className="p-3 bg-slate-100 border border-slate-200 rounded-2xl text-xs text-slate-700 font-bold flex items-center justify-center gap-2">
           <Shield className="w-4 h-4 text-blue-600 shrink-0" />
           <span>Restricted to Authorized ApniBus Accounts</span>
@@ -179,7 +172,6 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Pure 1-Click Google Sign-In Container */}
         <div className="py-2 flex flex-col items-center justify-center space-y-4">
           <div id="googleSignInBtn" className="flex justify-center min-h-[44px]"></div>
 

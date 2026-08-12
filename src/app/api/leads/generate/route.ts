@@ -48,21 +48,6 @@ export async function POST(req: Request) {
           "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
       `);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "SearchJob" (
-          "id" TEXT PRIMARY KEY,
-          "state" TEXT NOT NULL,
-          "city" TEXT NOT NULL,
-          "keyword" TEXT NOT NULL,
-          "searchedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "resultsFound" INTEGER NOT NULL DEFAULT 0,
-          "newLeads" INTEGER NOT NULL DEFAULT 0,
-          "duplicates" INTEGER NOT NULL DEFAULT 0,
-          "status" TEXT NOT NULL DEFAULT 'Completed',
-          "userId" TEXT REFERENCES "User"("id") ON DELETE SET NULL
-        );
-      `);
     } catch (e) {}
 
     // 2. Fetch existing placeIds & phones in 1 SINGLE FAST BATCH QUERY
@@ -78,7 +63,7 @@ export async function POST(req: Request) {
       });
     } catch (e) {}
 
-    // 3. Limit to top 5 high-converting keywords per batch for ultra-fast response (< 1s)
+    // 3. Limit to top 5 high-converting keywords per batch
     const targetKeywords = keywords.slice(0, 5);
 
     // 4. Run Google Places API searches in Parallel
@@ -117,7 +102,14 @@ export async function POST(req: Request) {
 
       for (const p of places) {
         const placeId = p.id || `custom-${Date.now()}-${Math.random()}`;
-        const businessName = p.displayName?.text || keyword;
+        
+        // CLEAN TRAVEL BRAND NAME RESOLUTION (NO places/ChIJ RESOURCE STRINGS)
+        let rawName = p.displayName?.text;
+        if (!rawName || rawName.startsWith('places/') || rawName.includes('ChIJ')) {
+          rawName = `${keyword} (${city} Bus Operator)`;
+        }
+        const businessName = rawName;
+
         const phone = p.nationalPhoneNumber || null;
         const website = p.websiteUri || null;
         const address = p.formattedAddress || `${city}, ${state}`;

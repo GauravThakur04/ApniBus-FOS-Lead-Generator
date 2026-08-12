@@ -29,11 +29,15 @@ export function Header() {
       .catch(() => setApiConnected(false));
   }, []);
 
-  const isSuperAdmin = currentUser.email === 'gaurav.thakur@apnibus.com';
-  const isAdmin = isSuperAdmin || currentUser.email === 'arvind.ranjan@apnibus.com' || currentUser.email === 'admin@apnibus.in';
+  const isSuperAdmin =
+    currentUser.email === 'gaurav.thakur@apnibus.com' ||
+    currentUser.email === 'arvind.ranjan@apnibus.com' ||
+    currentUser.email === 'admin@apnibus.in' ||
+    currentUser.role === 'SUPER_ADMIN' ||
+    currentUser.role === 'ADMIN';
 
   const switchRole = (role: string, name: string, email: string) => {
-    if (!isAdmin) return; // Non-admin users cannot switch portals
+    if (!isSuperAdmin) return;
     setCurrentUser({ role, name, email });
     localStorage.setItem('userRole', role);
     localStorage.setItem('userEmail', email);
@@ -91,15 +95,15 @@ export function Header() {
 
       {/* Right Side: Role Selector & User Profile */}
       <div className="flex items-center gap-4">
-        {/* Role Quick Switcher (Only Visible to Admin/Super Admin) */}
-        {isAdmin ? (
+        {/* Role Quick Switcher (Visible to Super Admin: Gaurav Thakur & Arvind Ranjan) */}
+        {isSuperAdmin ? (
           <div className="relative">
             <button
               onClick={() => setShowRoleMenu(!showRoleMenu)}
               className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-extrabold transition"
             >
               <Crown className="w-3.5 h-3.5 text-amber-600" />
-              <span>{isSuperAdmin ? '⚡ Super Admin Access' : `Active Portal: ${currentUser.name}`}</span>
+              <span>⚡ Super Admin Access</span>
               <ChevronDown className="w-3.5 h-3.5 text-amber-600" />
             </button>
 
@@ -112,14 +116,14 @@ export function Header() {
                 {/* Admin Master Portal Link */}
                 <Link
                   href="/leads"
-                  onClick={() => switchRole('ADMIN', 'Admin Master', 'admin@apnibus.in')}
+                  onClick={() => switchRole('SUPER_ADMIN', 'Admin Master', 'admin@apnibus.in')}
                   className={`w-full text-left px-3.5 py-2.5 hover:bg-blue-50 flex items-center justify-between transition ${
                     currentUser.email === 'admin@apnibus.in' ? 'font-black text-blue-700 bg-blue-50/70' : 'text-slate-700'
                   }`}
                 >
                   <div>
-                    <span className="block font-bold">👑 Admin Master Portal</span>
-                    <span className="text-[10px] text-slate-400">Generate &amp; Assign All Leads</span>
+                    <span className="block font-bold">👑 Admin Master Directory</span>
+                    <span className="text-[10px] text-slate-400">View All Generated Bus Leads</span>
                   </div>
                   <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
                 </Link>
@@ -179,7 +183,7 @@ export function Header() {
         ) : (
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold">
             <Lock className="w-3.5 h-3.5 text-slate-500" />
-            <span>Assigned Portal</span>
+            <span>Assigned Manager Portal</span>
           </div>
         )}
 
