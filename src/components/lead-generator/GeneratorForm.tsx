@@ -98,7 +98,7 @@ export function GeneratorForm({ onSearchSuccess }: GeneratorFormProps) {
     setSearchResult(null);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s safety timeout
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s safety timeout
 
     try {
       const res = await fetch('/api/leads/generate', {

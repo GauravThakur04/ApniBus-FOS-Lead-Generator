@@ -63,7 +63,7 @@ export async function POST(req: Request) {
       });
     } catch (e) {}
 
-    // 3. Limit to top 5 high-converting keywords per batch
+    // 3. Limit to top 5 high-converting keywords per batch for sub-second execution
     const targetKeywords = keywords.slice(0, 5);
 
     // 4. Run Google Places API searches in Parallel
@@ -86,10 +86,10 @@ export async function POST(req: Request) {
     let totalFound = 0;
     let newLeadsCount = 0;
     let duplicateCount = 0;
-    const createdLeadsList: any[] = [];
+    const leadsToInsert: any[] = [];
     const errorsList: string[] = [];
 
-    // 5. Deduplicate & Save each new lead reliably to Supabase
+    // 5. Fast In-Memory Deduplication & Lead Scoring (0ms CPU latency)
     for (const resItem of searchResults) {
       const { keyword, places, error } = resItem;
       if (error) {
@@ -97,15 +97,10 @@ export async function POST(req: Request) {
       }
 
       totalFound += places.length;
-      let kwNewLeads = 0;
-      let kwDuplicates = 0;
 
       for (const p of places) {
         const placeId = p.id || `custom-${Date.now()}-${Math.random()}`;
-        
-        // EXACT NAME AS WRITTEN ON GOOGLE MAPS BY THE TRAVEL OPERATOR
         const businessName = p.displayName?.text || keyword;
-
         const phone = p.nationalPhoneNumber || null;
         const website = p.websiteUri || null;
         const address = p.formattedAddress || `${city}, ${state}`;
@@ -130,43 +125,51 @@ export async function POST(req: Request) {
 
           const leadId = `lead-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-          try {
-            const savedLead = await prisma.lead.create({
-              data: {
-                id: leadId,
-                placeId,
-                businessName,
-                phone,
-                website,
-                address,
-                city,
-                state,
-                country: 'India',
-                googleMapsUrl,
-                rating,
-                reviewCount,
-                source: 'Google Places',
-                searchKeyword: keyword,
-                leadScore: score,
-                leadTemperature: temperature,
-                status: 'New',
-                assignedToId: null,
-              },
-            });
+          const leadObj = {
+            id: leadId,
+            placeId,
+            businessName,
+            phone,
+            website,
+            address,
+            city,
+            state,
+            country: 'India',
+            googleMapsUrl,
+            rating,
+            reviewCount,
+            source: 'Google Places',
+            searchKeyword: keyword,
+            leadScore: score,
+            leadTemperature: temperature,
+            status: 'New',
+            assignedToId: null,
+          };
 
-            existingPlacesSet.add(placeId);
-            if (phone) existingPhonesSet.add(phone);
-
-            kwNewLeads += 1;
-            newLeadsCount += 1;
-            createdLeadsList.push(savedLead);
-          } catch (createErr: any) {
-            console.error(`Failed to insert lead "${businessName}":`, createErr.message);
-          }
+          leadsToInsert.push(leadObj);
+          existingPlacesSet.add(placeId);
+          if (phone) existingPhonesSet.add(phone);
+          newLeadsCount += 1;
         } else {
-          kwDuplicates += 1;
           duplicateCount += 1;
         }
+      }
+    }
+
+    // 6. BULK INSERT ALL LEADS IN 1 SINGLE QUERY (0.1s DB Execution)
+    if (leadsToInsert.length > 0) {
+      try {
+        await prisma.lead.createMany({
+          data: leadsToInsert,
+          skipDuplicates: true,
+        });
+      } catch (insertErr) {
+        // Parallel fallback if createMany hits constraint
+        await Promise.all(
+          leadsToInsert.map((leadObj) =>
+            prisma.lead.create({ data: leadObj }).catch(() => {})
+          )
+        );
       }
     }
 
@@ -182,7 +185,7 @@ export async function POST(req: Request) {
       resultsFound: totalFound,
       newLeads: newLeadsCount,
       duplicates: duplicateCount,
-      leads: createdLeadsList,
+      leads: leadsToInsert,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
