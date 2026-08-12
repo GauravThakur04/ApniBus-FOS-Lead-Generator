@@ -23,6 +23,15 @@ export async function GET() {
       );
     `);
 
+    // Auto-update Arvind Ranjan's empId to SUPER in Supabase database
+    try {
+      await prisma.$executeRawUnsafe(`
+        UPDATE "User"
+        SET "empId" = 'SUPER', "role" = 'SUPER_ADMIN', "designation" = 'Super Admin'
+        WHERE "email" = 'arvind.ranjan@apnibus.com';
+      `);
+    } catch (e) {}
+
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "Lead" (
         "id" TEXT PRIMARY KEY,
@@ -115,7 +124,7 @@ export async function GET() {
       },
     });
 
-    // 2. Seed the Designated Leaders (Gaurav Thakur & Arvind Ranjan BOTH Super Admins)
+    // 2. Seed the Designated Leaders (Gaurav Thakur & Arvind Ranjan BOTH SUPER)
     const leadersData = [
       {
         empId: 'SUPER',
@@ -128,7 +137,7 @@ export async function GET() {
         cities: 'All India',
       },
       {
-        empId: 'SUPER_ARVIND',
+        empId: 'SUPER',
         name: 'Arvind Ranjan',
         email: 'arvind.ranjan@apnibus.com',
         phone: '9888888888',

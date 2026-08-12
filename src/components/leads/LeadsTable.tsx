@@ -118,6 +118,13 @@ export function LeadsTable({
     return name;
   };
 
+  const formatEmpIdBadge = (empId?: string, email?: string) => {
+    if (email === 'arvind.ranjan@apnibus.com' || email === 'gaurav.thakur@apnibus.com' || empId === 'ADMIN_ARVIND' || empId === 'SUPER_ARVIND') {
+      return 'SUPER';
+    }
+    return empId || 'MGR';
+  };
+
   // Quick Lead Category / Priority Change (1-Tap)
   const handleCategoryChange = async (leadId: string, newCategory: 'HOT' | 'WARM' | 'COLD') => {
     setLeadsList((prev) =>
@@ -453,7 +460,7 @@ export function LeadsTable({
             <option value="ASSIGNED">🟢 Assigned Leads</option>
             {leaders.map((l) => (
               <option key={l.id} value={l.id}>
-                👤 {l.name} ({l.empId})
+                👤 {l.name} ({formatEmpIdBadge(l.empId, l.email)})
               </option>
             ))}
           </select>
@@ -872,7 +879,7 @@ export function LeadsTable({
                           <option value="">⚪ Unassigned</option>
                           {leaders.map((l) => (
                             <option key={l.id} value={l.id}>
-                              👤 {l.name} ({l.empId})
+                              👤 {l.name} ({formatEmpIdBadge(l.empId, l.email)})
                             </option>
                           ))}
                         </select>
