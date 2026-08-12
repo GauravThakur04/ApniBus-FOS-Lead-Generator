@@ -872,7 +872,7 @@ export function LeadsTable({
 
                       <td className="py-3 px-4">
                         <select
-                          value={lead.assignedToId || ''}
+                          value={lead.assignedToId || lead.assignedTo?.id || ''}
                           onChange={(e) => handleAssignLeader(lead.id, e.target.value || null)}
                           className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none"
                         >
