@@ -3,6 +3,46 @@ import { prisma } from '@/lib/db';
 import { calculateLeadScore } from '@/lib/scoring';
 import { searchGooglePlaces } from '@/lib/google-places';
 
+const FORBIDDEN_WORDS = [
+  'cab',
+  'cabs',
+  'taxi',
+  'taxis',
+  'truck',
+  'trucks',
+  'trucking',
+  'logistics',
+  'cargo',
+  'freight',
+  'sleeper',
+  'sleepers',
+  'packers',
+  'movers',
+  'car rental',
+  'rent a car',
+  'rental',
+  'driving school',
+  'auto',
+  'rickshaw',
+  'courier',
+  'parcel',
+  'ambulance',
+  'crane',
+  'earthmover',
+  'jcb',
+];
+
+function isForbiddenNonBus(businessName: string, address?: string): boolean {
+  const text = `${businessName} ${address || ''}`.toLowerCase();
+  for (const word of FORBIDDEN_WORDS) {
+    const regex = new RegExp(`\\b${word}\\b`, 'i');
+    if (regex.test(text)) {
+      return true; // Reject cabs, trucks, sleepers, logistics, car rentals!
+    }
+  }
+  return false;
+}
+
 export async function POST(req: Request) {
   try {
     const { state, city, keywords } = await req.json();
@@ -50,27 +90,32 @@ export async function POST(req: Request) {
       `);
     } catch (e) {}
 
-    // 2. Fetch existing placeIds & phones in 1 SINGLE FAST BATCH QUERY
+    // 2. Fetch existing placeIds, phones, AND normalized names in 1 FAST QUERY for STRICT DEDUPLICATION
     let existingPlacesSet = new Set<string>();
     let existingPhonesSet = new Set<string>();
+    let existingNamesSet = new Set<string>();
     try {
       const existingLeads = await prisma.lead.findMany({
-        select: { placeId: true, phone: true },
+        select: { placeId: true, phone: true, businessName: true, city: true },
       });
       existingLeads.forEach((l) => {
         if (l.placeId) existingPlacesSet.add(l.placeId);
-        if (l.phone) existingPhonesSet.add(l.phone);
+        if (l.phone) existingPhonesSet.add(l.phone.replace(/[^0-9]/g, ''));
+        if (l.businessName && l.city) {
+          const key = `${l.businessName.trim().toLowerCase()}_${l.city.trim().toLowerCase()}`;
+          existingNamesSet.add(key);
+        }
       });
     } catch (e) {}
 
-    // 3. Limit to top 5 high-converting keywords per batch for sub-second execution
-    const targetKeywords = keywords.slice(0, 5);
+    // 3. Search across all selected keywords in parallel
+    const targetKeywords = keywords.slice(0, 10);
 
     // 4. Run Google Places API searches in Parallel
     const searchPromises = targetKeywords.map(async (keyword: string) => {
       const queryText = `${keyword} in ${city}, ${state}, India`;
       try {
-        const searchRes = await searchGooglePlaces({ query: queryText, pageSize: 15 });
+        const searchRes = await searchGooglePlaces({ query: queryText, pageSize: 20 });
         return {
           keyword,
           places: searchRes.places || [],
@@ -86,10 +131,11 @@ export async function POST(req: Request) {
     let totalFound = 0;
     let newLeadsCount = 0;
     let duplicateCount = 0;
+    let filteredOutCount = 0;
     const leadsToInsert: any[] = [];
     const errorsList: string[] = [];
 
-    // 5. Fast In-Memory Deduplication & Lead Scoring (0ms CPU latency)
+    // 5. Fast In-Memory Filtering & Triple Deduplication
     for (const resItem of searchResults) {
       const { keyword, places, error } = resItem;
       if (error) {
@@ -101,20 +147,31 @@ export async function POST(req: Request) {
       for (const p of places) {
         const placeId = p.id || `custom-${Date.now()}-${Math.random()}`;
         const businessName = p.displayName?.text || keyword;
-        const phone = p.nationalPhoneNumber || null;
-        const website = p.websiteUri || null;
         const address = p.formattedAddress || `${city}, ${state}`;
+
+        // FILTER 1: REJECT CABS, TAXIS, TRUCKS, SLEEPERS, LOGISTICS, CARGO, PACKERS & MOVERS
+        if (isForbiddenNonBus(businessName, address)) {
+          filteredOutCount += 1;
+          continue; // Skip irrelevant place!
+        }
+
+        const rawPhone = p.nationalPhoneNumber || null;
+        const cleanPhone = rawPhone ? rawPhone.replace(/[^0-9]/g, '') : null;
+        const website = p.websiteUri || null;
         const rating = p.rating ? Number(p.rating) : null;
         const reviewCount = p.userRatingCount ? Number(p.userRatingCount) : 0;
         const googleMapsUrl = p.googleMapsUri || null;
 
-        // In-memory instant duplicate check
-        const isDuplicatePlace = existingPlacesSet.has(placeId);
-        const isDuplicatePhone = phone && existingPhonesSet.has(phone);
+        const nameKey = `${businessName.trim().toLowerCase()}_${city.trim().toLowerCase()}`;
 
-        if (!isDuplicatePlace && !isDuplicatePhone) {
+        // FILTER 2: STRICT TRIPLE DEDUPLICATION (placeId, phone, OR businessName+city)
+        const isDuplicatePlace = existingPlacesSet.has(placeId);
+        const isDuplicatePhone = cleanPhone && existingPhonesSet.has(cleanPhone);
+        const isDuplicateName = existingNamesSet.has(nameKey);
+
+        if (!isDuplicatePlace && !isDuplicatePhone && !isDuplicateName) {
           const { score, temperature } = calculateLeadScore({
-            phone,
+            phone: rawPhone,
             website,
             rating,
             reviewCount,
@@ -129,7 +186,7 @@ export async function POST(req: Request) {
             id: leadId,
             placeId,
             businessName,
-            phone,
+            phone: rawPhone,
             website,
             address,
             city,
@@ -148,7 +205,8 @@ export async function POST(req: Request) {
 
           leadsToInsert.push(leadObj);
           existingPlacesSet.add(placeId);
-          if (phone) existingPhonesSet.add(phone);
+          if (cleanPhone) existingPhonesSet.add(cleanPhone);
+          existingNamesSet.add(nameKey);
           newLeadsCount += 1;
         } else {
           duplicateCount += 1;
@@ -156,7 +214,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 6. BULK INSERT ALL LEADS IN 1 SINGLE QUERY (0.1s DB Execution)
+    // 6. BULK INSERT ALL NEW UNIQUE BUS LEADS IN 1 SINGLE QUERY
     if (leadsToInsert.length > 0) {
       try {
         await prisma.lead.createMany({
@@ -164,7 +222,6 @@ export async function POST(req: Request) {
           skipDuplicates: true,
         });
       } catch (insertErr) {
-        // Parallel fallback if createMany hits constraint
         await Promise.all(
           leadsToInsert.map((leadObj) =>
             prisma.lead.create({ data: leadObj }).catch(() => {})
@@ -180,11 +237,13 @@ export async function POST(req: Request) {
         totalFound,
         newLeadsCount,
         duplicatesSkipped: duplicateCount,
+        filteredOutNonBus: filteredOutCount,
         errors: errorsList,
       },
       resultsFound: totalFound,
       newLeads: newLeadsCount,
       duplicates: duplicateCount,
+      filteredOutNonBus: filteredOutCount,
       leads: leadsToInsert,
     });
   } catch (error: any) {

@@ -307,18 +307,22 @@ export function GeneratorForm({ onSearchSuccess }: GeneratorFormProps) {
             <span>Lead Generation Run Completed!</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 pt-1 font-bold text-slate-700">
-            <div className="bg-white p-2.5 rounded-xl border border-emerald-100 text-center">
+          <div className="grid grid-cols-4 gap-2 pt-1 font-bold text-slate-700">
+            <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
               <span className="text-[10px] text-slate-400 uppercase block font-bold">Places Found</span>
-              <span className="text-base font-black text-slate-900 font-heading">{searchResult.resultsFound}</span>
+              <span className="text-sm font-black text-slate-900 font-heading">{searchResult.resultsFound}</span>
             </div>
-            <div className="bg-white p-2.5 rounded-xl border border-emerald-100 text-center">
-              <span className="text-[10px] text-slate-400 uppercase block font-bold">New Saved</span>
-              <span className="text-base font-black text-emerald-600 font-heading">{searchResult.newLeads}</span>
+            <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+              <span className="text-[10px] text-slate-400 uppercase block font-bold">New Bus Leads</span>
+              <span className="text-sm font-black text-emerald-600 font-heading">{searchResult.newLeads}</span>
             </div>
-            <div className="bg-white p-2.5 rounded-xl border border-emerald-100 text-center">
+            <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
               <span className="text-[10px] text-slate-400 uppercase block font-bold">Duplicates</span>
-              <span className="text-base font-black text-amber-600 font-heading">{searchResult.duplicates}</span>
+              <span className="text-sm font-black text-amber-600 font-heading">{searchResult.duplicates}</span>
+            </div>
+            <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+              <span className="text-[10px] text-slate-400 uppercase block font-bold">Non-Bus Filtered</span>
+              <span className="text-sm font-black text-rose-600 font-heading">{searchResult.filteredOutNonBus || 0}</span>
             </div>
           </div>
         </div>
