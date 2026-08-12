@@ -1,20 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { calculateLeadScore } from '@/lib/scoring';
-
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || '';
-
-interface GooglePlaceItem {
-  id?: string;
-  name?: string;
-  formattedAddress?: string;
-  nationalPhoneNumber?: string;
-  internationalPhoneNumber?: string;
-  websiteUri?: string;
-  rating?: number;
-  userRatingCount?: number;
-  googleMapsUri?: string;
-}
+import { searchGooglePlaces } from '@/lib/google-places';
 
 export async function POST(req: Request) {
   try {
@@ -53,44 +40,21 @@ export async function POST(req: Request) {
 
     for (const keyword of keywords) {
       const queryText = `${keyword} in ${city}, ${state}, India`;
-      let places: GooglePlaceItem[] = [];
-
-      if (GOOGLE_API_KEY) {
-        try {
-          const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Goog-Api-Key': GOOGLE_API_KEY,
-              'X-Goog-FieldMask':
-                'places.id,places.name,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.googleMapsUri',
-            },
-            body: JSON.stringify({
-              textQuery: queryText,
-              pageSize: 20,
-            }),
-          });
-
-          if (!res.ok) {
-            const errData = await res.json();
-            errorsList.push(`API Error for "${keyword}": ${errData.error?.message || res.statusText}`);
-          } else {
-            const data = await res.json();
-            places = data.places || [];
-          }
-        } catch (fetchErr: any) {
-          errorsList.push(`Fetch failed for "${keyword}": ${fetchErr.message}`);
-        }
+      
+      const searchRes = await searchGooglePlaces({ query: queryText, pageSize: 20 });
+      if (!searchRes.success) {
+        errorsList.push(`Search notice for "${keyword}": ${searchRes.error}`);
       }
 
+      const places = searchRes.places || [];
       totalFound += places.length;
       let kwNewLeads = 0;
       let kwDuplicates = 0;
 
       for (const p of places) {
         const placeId = p.id || `custom-${Date.now()}-${Math.random()}`;
-        const businessName = p.name || keyword;
-        const phone = p.nationalPhoneNumber || p.internationalPhoneNumber || null;
+        const businessName = p.displayName?.text || keyword;
+        const phone = p.nationalPhoneNumber || null;
         const website = p.websiteUri || null;
         const address = p.formattedAddress || `${city}, ${state}`;
         const rating = p.rating || null;
