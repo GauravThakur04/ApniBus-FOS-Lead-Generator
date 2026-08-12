@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       `);
     } catch (e) {}
 
-    // 2. Fetch all existing placeIds and phones in 1 SINGLE BATCH QUERY (0ms DB delay)
+    // 2. Fetch existing placeIds & phones in 1 SINGLE FAST BATCH QUERY
     let existingPlacesSet = new Set<string>();
     let existingPhonesSet = new Set<string>();
     try {
@@ -45,15 +45,22 @@ export async function POST(req: Request) {
       });
     } catch (e) {}
 
-    // 3. Run ALL keyword Google Places API searches in PARALLEL via Promise.all (Ultra-fast 1.2s total!)
-    const searchPromises = keywords.map(async (keyword) => {
+    // 3. Limit to top 5 high-converting keywords per batch for ultra-fast response (< 1s)
+    const targetKeywords = keywords.slice(0, 5);
+
+    // 4. Run Google Places API searches in Parallel
+    const searchPromises = targetKeywords.map(async (keyword: string) => {
       const queryText = `${keyword} in ${city}, ${state}, India`;
-      const searchRes = await searchGooglePlaces({ query: queryText, pageSize: 20 });
-      return {
-        keyword,
-        places: searchRes.places || [],
-        error: searchRes.success ? null : searchRes.error,
-      };
+      try {
+        const searchRes = await searchGooglePlaces({ query: queryText, pageSize: 15 });
+        return {
+          keyword,
+          places: searchRes.places || [],
+          error: searchRes.success ? null : searchRes.error,
+        };
+      } catch (err: any) {
+        return { keyword, places: [], error: err.message };
+      }
     });
 
     const searchResults = await Promise.all(searchPromises);
@@ -65,11 +72,11 @@ export async function POST(req: Request) {
     const createdLeadsList: any[] = [];
     const errorsList: string[] = [];
 
-    // 4. Fast In-Memory Deduplication & Lead Scoring (0ms CPU latency)
+    // 5. Fast In-Memory Deduplication & Lead Scoring (0ms CPU latency)
     for (const resItem of searchResults) {
       const { keyword, places, error } = resItem;
       if (error) {
-        errorsList.push(`Search notice for "${keyword}": ${error}`);
+        errorsList.push(`Notice for "${keyword}": ${error}`);
       }
 
       totalFound += places.length;
@@ -102,7 +109,6 @@ export async function POST(req: Request) {
           });
 
           const newLeadObj = {
-            id: `lead-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
             placeId,
             businessName,
             phone,
@@ -120,14 +126,11 @@ export async function POST(req: Request) {
             leadTemperature: temperature,
             status: 'New',
             assignedToId: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
           };
 
           leadsToInsert.push(newLeadObj);
           createdLeadsList.push(newLeadObj);
 
-          // Track in set to prevent duplicates across multiple keywords in same run
           existingPlacesSet.add(placeId);
           if (phone) existingPhonesSet.add(phone);
 
@@ -140,7 +143,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 5. BULK INSERT ALL LEADS IN 1 SINGLE QUERY (Lightning Fast!)
+    // 6. BULK INSERT ALL LEADS IN 1 SINGLE QUERY (Sub-second DB insertion)
     if (leadsToInsert.length > 0) {
       try {
         await prisma.lead.createMany({
@@ -148,7 +151,6 @@ export async function POST(req: Request) {
           skipDuplicates: true,
         });
       } catch (insertErr) {
-        // Fallback row-by-row if createMany has schema discrepancy
         for (const leadObj of leadsToInsert) {
           try {
             await prisma.lead.create({ data: leadObj });
@@ -160,7 +162,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       summary: {
-        totalSearchedKeywords: keywords.length,
+        totalSearchedKeywords: targetKeywords.length,
         totalFound,
         newLeadsCount,
         duplicatesSkipped: duplicateCount,

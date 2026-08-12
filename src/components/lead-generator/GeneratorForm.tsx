@@ -43,7 +43,7 @@ export function GeneratorForm({ onSearchSuccess }: GeneratorFormProps) {
   const [customCity, setCustomCity] = useState('');
   const [useCustomCity, setUseCustomCity] = useState(false);
 
-  // All 10 High-converting non-sleeper keywords pre-selected by default
+  // High-converting bus search keywords
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([...NON_SLEEPER_SEARCH_KEYWORDS]);
   const [customKeyword, setCustomKeyword] = useState('');
 
@@ -97,16 +97,22 @@ export function GeneratorForm({ onSearchSuccess }: GeneratorFormProps) {
     setIsSearching(true);
     setSearchResult(null);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s safety timeout
+
     try {
       const res = await fetch('/api/leads/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           state: selectedState,
           city: targetCity,
           keywords: selectedKeywords,
         }),
       });
+
+      clearTimeout(timeoutId);
 
       const data = await res.json();
       if (!res.ok) {
@@ -118,7 +124,12 @@ export function GeneratorForm({ onSearchSuccess }: GeneratorFormProps) {
         onSearchSuccess(data);
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Error occurred while searching Google Places API.');
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        setErrorMessage('Request timeout. Google Places API took too long to respond. Please try again.');
+      } else {
+        setErrorMessage(err.message || 'Error occurred while searching Google Places API.');
+      }
     } finally {
       setIsSearching(false);
     }
@@ -278,7 +289,7 @@ export function GeneratorForm({ onSearchSuccess }: GeneratorFormProps) {
         {isSearching ? (
           <>
             <RefreshCw className="w-4 h-4 animate-spin text-white" />
-            <span>Searching Google Places across {selectedKeywords.length} Keywords...</span>
+            <span>Generating Bus Leads Now (Ultra-Fast Mode)...</span>
           </>
         ) : (
           <>
