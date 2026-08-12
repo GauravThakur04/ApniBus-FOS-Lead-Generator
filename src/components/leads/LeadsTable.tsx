@@ -49,6 +49,14 @@ interface Lead {
 
 export type LeadItem = Lead;
 
+const DEFAULT_LEADERS = [
+  { id: 'leader-gaurav', name: 'Gaurav Thakur', email: 'gaurav.thakur@apnibus.com', empId: 'SUPER' },
+  { id: 'leader-arvind', name: 'Arvind Ranjan', email: 'arvind.ranjan@apnibus.com', empId: 'SUPER' },
+  { id: 'leader-sonu', name: 'Sonu Mishra', email: 'sonu.mishra@apnibus.com', empId: 'AB024' },
+  { id: 'leader-tarun', name: 'Tarun Kumar', email: 'tarun.kumar@apnibus.com', empId: 'AB407' },
+  { id: 'leader-rajnish', name: 'Rajnish', email: 'rajnish.kumar@apnibus.com', empId: 'AB012' },
+];
+
 interface LeadsTableProps {
   leads: Lead[];
   totalLeads?: number;
@@ -72,7 +80,7 @@ export function LeadsTable({
   const [tempFilter, setTempFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [mapsVisitedFilter, setMapsVisitedFilter] = useState('ALL');
-  const [leaders, setLeaders] = useState<any[]>([]);
+  const [leaders, setLeaders] = useState<any[]>(DEFAULT_LEADERS);
   const [isDeleting, setIsDeleting] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
@@ -86,7 +94,7 @@ export function LeadsTable({
     setLeadsList(leads);
   }, [leads]);
 
-  // Load visited maps history & leaders
+  // Load visited maps history & fetch dynamic leaders from database
   useEffect(() => {
     const saved = localStorage.getItem('visitedMapIds');
     if (saved) {
@@ -98,7 +106,9 @@ export function LeadsTable({
     fetch('/api/seed')
       .then((res) => res.json())
       .then((data) => {
-        if (data.leaders) setLeaders(data.leaders);
+        if (data.leaders && Array.isArray(data.leaders) && data.leaders.length > 0) {
+          setLeaders(data.leaders);
+        }
       })
       .catch(() => {});
   }, []);
@@ -119,10 +129,27 @@ export function LeadsTable({
   };
 
   const formatEmpIdBadge = (empId?: string, email?: string) => {
-    if (email === 'arvind.ranjan@apnibus.com' || email === 'gaurav.thakur@apnibus.com' || empId === 'ADMIN_ARVIND' || empId === 'SUPER_ARVIND') {
+    if (
+      email === 'arvind.ranjan@apnibus.com' ||
+      email === 'gaurav.thakur@apnibus.com' ||
+      empId === 'ADMIN_ARVIND' ||
+      empId === 'SUPER_ARVIND'
+    ) {
       return 'SUPER';
     }
     return empId || 'MGR';
+  };
+
+  // Resolve active select value for a lead
+  const getLeaderSelectValue = (lead: Lead) => {
+    const activeTarget = lead.assignedToId || lead.assignedTo?.id || lead.assignedTo?.email;
+    if (!activeTarget) return '';
+
+    // Match against current leaders list
+    const found = leaders.find(
+      (l) => l.id === activeTarget || l.email === activeTarget || l.empId === activeTarget
+    );
+    return found ? found.id : '';
   };
 
   // Quick Lead Category / Priority Change (1-Tap)
@@ -145,7 +172,7 @@ export function LeadsTable({
     }
   };
 
-  // 1-Tap Pipeline Status Change (Includes SALE DONE & LOST)
+  // 1-Tap Pipeline Status Change
   const handlePipelineStatusChange = async (leadId: string, newStatus: string) => {
     const now = new Date().toISOString();
     setLeadsList((prev) =>
@@ -203,16 +230,20 @@ export function LeadsTable({
 
   // Quick Assignment Change (1-Tap)
   const handleAssignLeader = async (leadId: string, assignedToId: string | null) => {
-    const selectedLeader = leaders.find((l) => l.id === assignedToId);
+    const selectedLeader = leaders.find(
+      (l) => l.id === assignedToId || l.email === assignedToId || l.empId === assignedToId
+    );
+
     setLeadsList((prev) =>
       prev.map((item) =>
         item.id === leadId
           ? {
               ...item,
-              assignedToId,
+              assignedToId: selectedLeader ? selectedLeader.id : null,
               assignedTo: selectedLeader
                 ? { id: selectedLeader.id, name: selectedLeader.name, email: selectedLeader.email }
                 : null,
+              status: selectedLeader ? 'Assigned' : item.status,
             }
           : item
       )
@@ -222,7 +253,7 @@ export function LeadsTable({
       await fetch(`/api/leads/${leadId}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignedToId }),
+        body: JSON.stringify({ assignedToId: selectedLeader ? selectedLeader.id : null }),
       });
       setToastMessage(selectedLeader ? `Assigned lead to ${selectedLeader.name}!` : 'Lead unassigned.');
       setTimeout(() => setToastMessage(''), 2500);
@@ -269,17 +300,20 @@ export function LeadsTable({
 
   const handleBulkAssign = async (assignedToId: string) => {
     if (selectedLeadIds.length === 0) return;
-    const selectedLeader = leaders.find((l) => l.id === assignedToId);
+    const selectedLeader = leaders.find(
+      (l) => l.id === assignedToId || l.email === assignedToId || l.empId === assignedToId
+    );
 
     setLeadsList((prev) =>
       prev.map((item) =>
         selectedLeadIds.includes(item.id)
           ? {
               ...item,
-              assignedToId,
+              assignedToId: selectedLeader ? selectedLeader.id : null,
               assignedTo: selectedLeader
                 ? { id: selectedLeader.id, name: selectedLeader.name, email: selectedLeader.email }
                 : null,
+              status: selectedLeader ? 'Assigned' : item.status,
             }
           : item
       )
@@ -294,7 +328,7 @@ export function LeadsTable({
       await fetch('/api/leads/bulk-assign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadIds: idsToAssign, assignedToId }),
+        body: JSON.stringify({ assignedToId: selectedLeader ? selectedLeader.id : null, leadIds: idsToAssign }),
       });
       if (onQuickStatusChange) onQuickStatusChange();
     } catch (err) {
@@ -345,10 +379,11 @@ export function LeadsTable({
     if (tempFilter !== 'ALL' && lead.leadTemperature !== tempFilter) return false;
     if (statusFilter !== 'ALL' && lead.status !== statusFilter) return false;
 
-    if (assignedFilter === 'UNASSIGNED' && lead.assignedToId) return false;
-    if (assignedFilter === 'ASSIGNED' && !lead.assignedToId) return false;
+    const activeAssignedId = lead.assignedToId || lead.assignedTo?.id;
+    if (assignedFilter === 'UNASSIGNED' && activeAssignedId) return false;
+    if (assignedFilter === 'ASSIGNED' && !activeAssignedId) return false;
     if (assignedFilter !== 'ALL' && assignedFilter !== 'UNASSIGNED' && assignedFilter !== 'ASSIGNED') {
-      if (lead.assignedToId !== assignedFilter) return false;
+      if (activeAssignedId !== assignedFilter) return false;
     }
 
     return true;
@@ -644,14 +679,14 @@ export function LeadsTable({
                     </select>
 
                     <select
-                      value={lead.assignedToId || ''}
+                      value={getLeaderSelectValue(lead)}
                       onChange={(e) => handleAssignLeader(lead.id, e.target.value || null)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none"
                     >
                       <option value="">⚪ Unassigned</option>
                       {leaders.map((l) => (
                         <option key={l.id} value={l.id}>
-                          👤 {l.name}
+                          👤 {l.name} ({formatEmpIdBadge(l.empId, l.email)})
                         </option>
                       ))}
                     </select>
@@ -870,11 +905,12 @@ export function LeadsTable({
                         </select>
                       </td>
 
+                      {/* ASSIGNED LEADER DROPDOWN WITH GUARANTEED LEADERS & FLEXIBLE ID/EMAIL MATCHING */}
                       <td className="py-3 px-4">
                         <select
-                          value={lead.assignedToId || lead.assignedTo?.id || ''}
+                          value={getLeaderSelectValue(lead)}
                           onChange={(e) => handleAssignLeader(lead.id, e.target.value || null)}
-                          className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none"
+                          className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
                         >
                           <option value="">⚪ Unassigned</option>
                           {leaders.map((l) => (
