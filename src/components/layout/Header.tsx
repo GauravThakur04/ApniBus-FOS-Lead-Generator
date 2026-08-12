@@ -38,6 +38,13 @@ export function Header() {
     window.dispatchEvent(new Event('storage'));
   };
 
+  const handleSignOut = () => {
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
+    window.location.href = '/login';
+  };
+
   return (
     <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
       <div className="flex items-center gap-4">
@@ -78,7 +85,7 @@ export function Header() {
         </div>
       </div>
 
-      {/* Right Side: Role Selector & Direct Portal Links */}
+      {/* Right Side: Role Selector & User Profile */}
       <div className="flex items-center gap-4">
         {/* Role Quick Switcher */}
         <div className="relative">
@@ -165,7 +172,7 @@ export function Header() {
           )}
         </div>
 
-        {/* User Avatar */}
+        {/* User Avatar & Sign Out */}
         <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
           <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm shadow">
             {currentUser.name.charAt(0)}
@@ -174,6 +181,14 @@ export function Header() {
             <p className="text-xs font-bold text-slate-800 leading-tight">{currentUser.name}</p>
             <p className="text-[11px] text-slate-500">{currentUser.email}</p>
           </div>
+
+          <button
+            onClick={handleSignOut}
+            title="Sign Out"
+            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </header>
