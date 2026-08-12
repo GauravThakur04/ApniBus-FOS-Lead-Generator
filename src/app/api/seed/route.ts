@@ -92,6 +92,21 @@ export async function GET() {
       );
     `);
 
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "SearchJob" (
+        "id" TEXT PRIMARY KEY,
+        "state" TEXT NOT NULL,
+        "city" TEXT NOT NULL,
+        "keyword" TEXT NOT NULL,
+        "searchedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "resultsFound" INTEGER NOT NULL DEFAULT 0,
+        "newLeads" INTEGER NOT NULL DEFAULT 0,
+        "duplicates" INTEGER NOT NULL DEFAULT 0,
+        "status" TEXT NOT NULL DEFAULT 'Completed',
+        "userId" TEXT REFERENCES "User"("id") ON DELETE SET NULL
+      );
+    `);
+
     // 1. Seed Admin User
     const admin = await prisma.user.upsert({
       where: { email: 'admin@apnibus.in' },
@@ -112,8 +127,26 @@ export async function GET() {
       },
     });
 
-    // 2. Seed the 3 Designated Leaders
+    // 2. Seed the Designated Leaders
     const leadersData = [
+      {
+        empId: 'SUPER',
+        name: 'Gaurav Thakur',
+        email: 'gaurav.thakur@apnibus.com',
+        phone: '9999999999',
+        designation: 'Super Admin',
+        state: 'Haryana',
+        cities: 'All India',
+      },
+      {
+        empId: 'ADMIN_ARVIND',
+        name: 'Arvind Ranjan',
+        email: 'arvind.ranjan@apnibus.com',
+        phone: '9888888888',
+        designation: 'Admin',
+        state: 'Haryana',
+        cities: 'All India',
+      },
       {
         empId: 'AB024',
         name: 'Sonu Mishra',

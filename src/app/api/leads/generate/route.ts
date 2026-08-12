@@ -27,6 +27,24 @@ export async function POST(req: Request) {
       );
     }
 
+    // Ensure Lead and SearchJob tables exist
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "SearchJob" (
+          "id" TEXT PRIMARY KEY,
+          "state" TEXT NOT NULL,
+          "city" TEXT NOT NULL,
+          "keyword" TEXT NOT NULL,
+          "searchedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "resultsFound" INTEGER NOT NULL DEFAULT 0,
+          "newLeads" INTEGER NOT NULL DEFAULT 0,
+          "duplicates" INTEGER NOT NULL DEFAULT 0,
+          "status" TEXT NOT NULL DEFAULT 'Completed',
+          "userId" TEXT REFERENCES "User"("id") ON DELETE SET NULL
+        );
+      `);
+    } catch (e) {}
+
     let totalFound = 0;
     let newLeadsCount = 0;
     let duplicateCount = 0;
@@ -60,8 +78,8 @@ export async function POST(req: Request) {
             const data = await res.json();
             places = data.places || [];
           }
-        } catch (err: any) {
-          errorsList.push(`Fetch failed for "${keyword}": ${err.message}`);
+        } catch (fetchErr: any) {
+          errorsList.push(`Fetch failed for "${keyword}": ${fetchErr.message}`);
         }
       }
 
@@ -69,28 +87,23 @@ export async function POST(req: Request) {
       let kwNewLeads = 0;
       let kwDuplicates = 0;
 
-      for (const place of places) {
-        const placeId = place.id || null;
-        const businessName = place.name || 'Bus Operator';
-        const phone = place.nationalPhoneNumber || place.internationalPhoneNumber || null;
-        const website = place.websiteUri || null;
-        const address = place.formattedAddress || null;
-        const rating = place.rating || null;
-        const reviewCount = place.userRatingCount || null;
-        const googleMapsUrl = place.googleMapsUri || null;
+      for (const p of places) {
+        const placeId = p.id || `custom-${Date.now()}-${Math.random()}`;
+        const businessName = p.name || keyword;
+        const phone = p.nationalPhoneNumber || p.internationalPhoneNumber || null;
+        const website = p.websiteUri || null;
+        const address = p.formattedAddress || `${city}, ${state}`;
+        const rating = p.rating || null;
+        const reviewCount = p.userRatingCount || 0;
+        const googleMapsUrl = p.googleMapsUri || null;
 
-        // Check deduplication by placeId or businessName+city
+        // Check duplicate
         let existing = null;
-        if (placeId) {
-          existing = await prisma.lead.findUnique({ where: { placeId } });
+        if (p.id) {
+          existing = await prisma.lead.findUnique({ where: { placeId: p.id } });
         }
-        if (!existing) {
-          existing = await prisma.lead.findFirst({
-            where: {
-              businessName,
-              city,
-            },
-          });
+        if (!existing && phone) {
+          existing = await prisma.lead.findFirst({ where: { phone } });
         }
 
         if (!existing) {
@@ -104,7 +117,6 @@ export async function POST(req: Request) {
             address,
           });
 
-          // Create new lead as UNASSIGNED so user can manually assign
           const result = await prisma.lead.create({
             data: {
               placeId,
@@ -121,7 +133,7 @@ export async function POST(req: Request) {
               searchKeyword: keyword,
               googleMapsUrl,
               status: 'New',
-              assignedToId: null, // Unassigned by default per user directive
+              assignedToId: null,
             },
           });
 
@@ -134,18 +146,20 @@ export async function POST(req: Request) {
         }
       }
 
-      // Log search job
-      await prisma.searchJob.create({
-        data: {
-          state,
-          city,
-          keyword,
-          resultsFound: places.length,
-          newLeads: kwNewLeads,
-          duplicates: kwDuplicates,
-          status: 'COMPLETED',
-        },
-      });
+      // Safely log search job audit entry
+      try {
+        await prisma.searchJob.create({
+          data: {
+            state,
+            city,
+            keyword,
+            resultsFound: places.length,
+            newLeads: kwNewLeads,
+            duplicates: kwDuplicates,
+            status: 'COMPLETED',
+          },
+        });
+      } catch (e) {}
     }
 
     return NextResponse.json({
@@ -157,6 +171,9 @@ export async function POST(req: Request) {
         duplicatesSkipped: duplicateCount,
         errors: errorsList,
       },
+      resultsFound: totalFound,
+      newLeads: newLeadsCount,
+      duplicates: duplicateCount,
       leads: createdLeads,
     });
   } catch (error: any) {
