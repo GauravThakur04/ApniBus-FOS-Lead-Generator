@@ -50,11 +50,11 @@ interface Lead {
 export type LeadItem = Lead;
 
 const DEFAULT_LEADERS = [
-  { id: 'leader-gaurav', name: 'Gaurav Thakur', email: 'gaurav.thakur@apnibus.com', empId: 'SUPER' },
-  { id: 'leader-arvind', name: 'Arvind Ranjan', email: 'arvind.ranjan@apnibus.com', empId: 'SUPER' },
-  { id: 'leader-sonu', name: 'Sonu Mishra', email: 'sonu.mishra@apnibus.com', empId: 'AB024' },
-  { id: 'leader-tarun', name: 'Tarun Kumar', email: 'tarun.kumar@apnibus.com', empId: 'AB407' },
-  { id: 'leader-rajnish', name: 'Rajnish', email: 'rajnish.kumar@apnibus.com', empId: 'AB012' },
+  { id: 'gaurav.thakur@apnibus.com', name: 'Gaurav Thakur', email: 'gaurav.thakur@apnibus.com', empId: 'SUPER' },
+  { id: 'arvind.ranjan@apnibus.com', name: 'Arvind Ranjan', email: 'arvind.ranjan@apnibus.com', empId: 'SUPER' },
+  { id: 'sonu.mishra@apnibus.com', name: 'Sonu Mishra', email: 'sonu.mishra@apnibus.com', empId: 'AB024' },
+  { id: 'tarun.kumar@apnibus.com', name: 'Tarun Kumar', email: 'tarun.kumar@apnibus.com', empId: 'AB407' },
+  { id: 'rajnish.kumar@apnibus.com', name: 'Rajnish', email: 'rajnish.kumar@apnibus.com', empId: 'AB012' },
 ];
 
 interface LeadsTableProps {
@@ -140,16 +140,35 @@ export function LeadsTable({
     return empId || 'MGR';
   };
 
-  // Resolve active select value for a lead
+  // Robust resolver for active select value for a lead
   const getLeaderSelectValue = (lead: Lead) => {
-    const activeTarget = lead.assignedToId || lead.assignedTo?.id || lead.assignedTo?.email;
-    if (!activeTarget) return '';
+    if (!lead.assignedToId && !lead.assignedTo) return '';
 
-    // Match against current leaders list
-    const found = leaders.find(
-      (l) => l.id === activeTarget || l.email === activeTarget || l.empId === activeTarget
-    );
-    return found ? found.id : '';
+    const assignedId = lead.assignedToId || lead.assignedTo?.id;
+    const assignedEmail = (lead.assignedTo?.email || '').toLowerCase();
+    const assignedEmpId = lead.assignedTo?.empId;
+
+    // Match against leaders state array
+    const found = leaders.find((l) => {
+      if (assignedId && l.id === assignedId) return true;
+      if (assignedEmail && l.email && l.email.toLowerCase() === assignedEmail) return true;
+      if (assignedEmpId && l.empId && l.empId === assignedEmpId) return true;
+      return false;
+    });
+
+    if (found) return found.id;
+
+    // Name fallback matching
+    if (lead.assignedTo?.name) {
+      const name = lead.assignedTo.name.toLowerCase();
+      if (name.includes('sonu')) return leaders.find((l) => l.email.includes('sonu'))?.id || '';
+      if (name.includes('tarun')) return leaders.find((l) => l.email.includes('tarun'))?.id || '';
+      if (name.includes('rajnish')) return leaders.find((l) => l.email.includes('rajnish'))?.id || '';
+      if (name.includes('arvind')) return leaders.find((l) => l.email.includes('arvind'))?.id || '';
+      if (name.includes('gaurav')) return leaders.find((l) => l.email.includes('gaurav'))?.id || '';
+    }
+
+    return '';
   };
 
   // Quick Lead Category / Priority Change (1-Tap)
@@ -379,9 +398,9 @@ export function LeadsTable({
     if (tempFilter !== 'ALL' && lead.leadTemperature !== tempFilter) return false;
     if (statusFilter !== 'ALL' && lead.status !== statusFilter) return false;
 
-    const activeAssignedId = lead.assignedToId || lead.assignedTo?.id;
-    if (assignedFilter === 'UNASSIGNED' && activeAssignedId) return false;
-    if (assignedFilter === 'ASSIGNED' && !activeAssignedId) return false;
+    const activeAssignedId = getLeaderSelectValue(lead);
+    if (assignedFilter === 'UNASSIGNED' && activeAssignedId !== '') return false;
+    if (assignedFilter === 'ASSIGNED' && activeAssignedId === '') return false;
     if (assignedFilter !== 'ALL' && assignedFilter !== 'UNASSIGNED' && assignedFilter !== 'ASSIGNED') {
       if (activeAssignedId !== assignedFilter) return false;
     }
@@ -905,7 +924,7 @@ export function LeadsTable({
                         </select>
                       </td>
 
-                      {/* ASSIGNED LEADER DROPDOWN WITH GUARANTEED LEADERS & FLEXIBLE ID/EMAIL MATCHING */}
+                      {/* ASSIGNED LEADER DROPDOWN WITH GUARANTEED LEADERS & FLEXIBLE ID/EMAIL/NAME MATCHING */}
                       <td className="py-3 px-4">
                         <select
                           value={getLeaderSelectValue(lead)}
