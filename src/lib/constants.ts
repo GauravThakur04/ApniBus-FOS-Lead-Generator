@@ -48,4 +48,9 @@ export const NON_SLEEPER_SEARCH_KEYWORDS = [
   'State Permit Bus Fleet Operator',
   'Intercity Route Bus Stand',
   'Seater Passenger Bus Service',
+  'Bus Transport Agent Office',
+  'Express Stage Carriage Bus',
+  'Interstate Bus Syndicate',
+  'Intercity Bus Service Counter',
+  'Deluxe Bus Booking Office',
 ];

@@ -108,21 +108,33 @@ export async function POST(req: Request) {
       });
     } catch (e) {}
 
-    // 3. Search across all selected keywords in parallel
-    const targetKeywords = keywords.slice(0, 10);
+    // 3. Determine Cities to Scan (Supports Full State Bulk Scanning)
+    const targetCities: string[] = city.toLowerCase().includes('full') || city.toLowerCase().includes('24')
+      ? ['Ranchi', 'Jamshedpur', 'Dhanbad', 'Bokaro', 'Hazaribagh', 'Deoghar', 'Giridih', 'Ramgarh', 'Sahibganj', 'Medininagar', 'Chaibasa', 'Dumka']
+      : [city];
 
-    // 4. Run Google Places API searches in Parallel
-    const searchPromises = targetKeywords.map(async (keyword: string) => {
-      const queryText = `${keyword} in ${city}, ${state}, India`;
+    const targetKeywords = keywords.slice(0, 15);
+
+    // 4. Run Google Places API searches across Cities & Keywords in Parallel
+    const searchQueries: { city: string; keyword: string }[] = [];
+    for (const c of targetCities) {
+      for (const kw of targetKeywords) {
+        searchQueries.push({ city: c, keyword: kw });
+      }
+    }
+
+    const searchPromises = searchQueries.map(async (item) => {
+      const queryText = `${item.keyword} in ${item.city}, ${state}, India`;
       try {
         const searchRes = await searchGooglePlaces({ query: queryText, pageSize: 20 });
         return {
-          keyword,
+          city: item.city,
+          keyword: item.keyword,
           places: searchRes.places || [],
           error: searchRes.success ? null : searchRes.error,
         };
       } catch (err: any) {
-        return { keyword, places: [], error: err.message };
+        return { city: item.city, keyword: item.keyword, places: [], error: err.message };
       }
     });
 
@@ -137,9 +149,9 @@ export async function POST(req: Request) {
 
     // 5. Fast In-Memory Filtering & Triple Deduplication
     for (const resItem of searchResults) {
-      const { keyword, places, error } = resItem;
+      const { city: itemCity, keyword, places, error } = resItem;
       if (error) {
-        errorsList.push(`Notice for "${keyword}": ${error}`);
+        errorsList.push(`Notice for "${keyword}" (${itemCity}): ${error}`);
       }
 
       totalFound += places.length;
@@ -147,7 +159,7 @@ export async function POST(req: Request) {
       for (const p of places) {
         const placeId = p.id || `custom-${Date.now()}-${Math.random()}`;
         const businessName = p.displayName?.text || keyword;
-        const address = p.formattedAddress || `${city}, ${state}`;
+        const address = p.formattedAddress || `${itemCity}, ${state}`;
 
         // FILTER 1: REJECT CABS, TAXIS, TRUCKS, SLEEPERS, LOGISTICS, CARGO, PACKERS & MOVERS
         if (isForbiddenNonBus(businessName, address)) {
@@ -162,7 +174,7 @@ export async function POST(req: Request) {
         const reviewCount = p.userRatingCount ? Number(p.userRatingCount) : 0;
         const googleMapsUrl = p.googleMapsUri || null;
 
-        const nameKey = `${businessName.trim().toLowerCase()}_${city.trim().toLowerCase()}`;
+        const nameKey = `${businessName.trim().toLowerCase()}_${itemCity.trim().toLowerCase()}`;
 
         // FILTER 2: STRICT TRIPLE DEDUPLICATION (placeId, phone, OR businessName+city)
         const isDuplicatePlace = existingPlacesSet.has(placeId);
@@ -187,16 +199,20 @@ export async function POST(req: Request) {
             placeId,
             businessName,
             phone: rawPhone,
+            email: null,
             website,
             address,
-            city,
+            city: itemCity,
             state,
             country: 'India',
+            latitude: (p.location as any)?.latitude || null,
+            longitude: (p.location as any)?.longitude || null,
             googleMapsUrl,
             rating,
             reviewCount,
             source: 'Google Places',
             searchKeyword: keyword,
+            searchKeywordsHistory: keyword,
             leadScore: score,
             leadTemperature: temperature,
             status: 'New',

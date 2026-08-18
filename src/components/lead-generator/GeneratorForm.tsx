@@ -19,7 +19,7 @@ const MASTER_TERRITORIES: StateCityData = {
   'Madhya Pradesh': ['Bhopal', 'Indore', 'Betul', 'Kurawar', 'Gwalior', 'Jabalpur', 'Ujjain'],
   'Chhattisgarh': ['Raipur', 'Bhilai', 'Bilaspur', 'Korba', 'Durg', 'Bemetara', 'KCG'],
   'Bihar': ['Patna', 'Gaya', 'Muzaffarpur', 'Bhagalpur', 'Darbhanga', 'Purnia'],
-  'Jharkhand': ['Ranchi', 'Jamshedpur', 'Dhanbad', 'Bokaro', 'Hazaribagh'],
+  'Jharkhand': ['Full Jharkhand (24 Districts Deep Scan)', 'Ranchi', 'Jamshedpur', 'Dhanbad', 'Bokaro', 'Hazaribagh', 'Deoghar', 'Giridih', 'Ramgarh', 'Sahibganj', 'Medininagar', 'Chaibasa', 'Dumka', 'Palamu', 'Garhwa', 'Chatra', 'Koderma', 'Jamtara', 'Godda', 'Pakur', 'Simdega', 'Gumla', 'Khunti', 'Lohardaga', 'Saraikela'],
   'Gujarat': ['Ahmedabad', 'Surat', 'Vadodara', 'Rajkot', 'Bhavnagar', 'Jamnagar'],
   'Maharashtra': ['Mumbai', 'Pune', 'Nagpur', 'Nashik', 'Thane', 'Aurangabad', 'Solapur', 'Kolhapur'],
   'West Bengal': ['Kolkata', 'Howrah', 'Durgapur', 'Asansol', 'Siliguri'],
