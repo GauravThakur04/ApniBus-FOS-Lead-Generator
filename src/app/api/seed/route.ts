@@ -23,15 +23,6 @@ export async function GET() {
       );
     `);
 
-    // Auto-update Arvind Ranjan's empId to SUPER_ARVIND in Supabase database
-    try {
-      await prisma.$executeRawUnsafe(`
-        UPDATE "User"
-        SET "empId" = 'SUPER_ARVIND', "role" = 'SUPER_ADMIN', "designation" = 'Super Admin'
-        WHERE "email" = 'arvind.ranjan@apnibus.com';
-      `);
-    } catch (e) {}
-
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "Lead" (
         "id" TEXT PRIMARY KEY,
@@ -108,7 +99,6 @@ export async function GET() {
       where: { email: 'admin@apnibus.in' },
       update: {
         name: 'Admin Master',
-        empId: 'ADMIN',
         role: 'SUPER_ADMIN',
         designation: 'Super Admin',
       },
@@ -124,7 +114,7 @@ export async function GET() {
       },
     });
 
-    // 2. Seed Designated Leaders & Team Members (Each empId MUST BE UNIQUE)
+    // 2. Seed Designated Leaders & Team Members
     const leadersData = [
       {
         empId: 'SUPER_GAURAV',
@@ -214,7 +204,6 @@ export async function GET() {
           phone: l.phone,
           role: l.role,
           designation: l.designation,
-          empId: l.empId,
           state: l.state,
           cities: l.cities,
           reportingManager: l.reportingManager,
