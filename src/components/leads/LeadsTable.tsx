@@ -60,6 +60,8 @@ const DEFAULT_LEADERS = [
   { id: 'sonu.mishra@apnibus.com', name: 'Sonu Mishra', email: 'sonu.mishra@apnibus.com', empId: 'AB024' },
   { id: 'tarun.kumar@apnibus.com', name: 'Tarun Kumar', email: 'tarun.kumar@apnibus.com', empId: 'AB407' },
   { id: 'rajnish.kumar@apnibus.com', name: 'Rajnish', email: 'rajnish.kumar@apnibus.com', empId: 'AB012' },
+  { id: 'utpalmandalfkk1234@gmail.com', name: 'Utpal Mandal', email: 'utpalmandalfkk1234@gmail.com', empId: 'ISA01' },
+  { id: 'dks322001@gmail.com', name: 'Deepak Saini', email: 'dks322001@gmail.com', empId: 'ISA02' },
 ];
 
 interface LeadsTableProps {
@@ -174,6 +176,8 @@ export function LeadsTable({
       if (name.includes('rajnish')) return leaders.find((l) => l.email.includes('rajnish'))?.id || '';
       if (name.includes('arvind')) return leaders.find((l) => l.email.includes('arvind'))?.id || '';
       if (name.includes('gaurav')) return leaders.find((l) => l.email.includes('gaurav'))?.id || '';
+      if (name.includes('utpal')) return leaders.find((l) => l.email.includes('utpal'))?.id || '';
+      if (name.includes('deepak')) return leaders.find((l) => l.email.includes('deepak'))?.id || '';
     }
 
     return '';

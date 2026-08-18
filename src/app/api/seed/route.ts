@@ -124,7 +124,7 @@ export async function GET() {
       },
     });
 
-    // 2. Seed the Designated Leaders (Gaurav Thakur & Arvind Ranjan BOTH SUPER)
+    // 2. Seed Designated Leaders & Team Members
     const leadersData = [
       {
         empId: 'SUPER',
@@ -135,6 +135,7 @@ export async function GET() {
         designation: 'Super Admin',
         state: 'Haryana',
         cities: 'All India',
+        reportingManager: null,
       },
       {
         empId: 'SUPER',
@@ -145,6 +146,7 @@ export async function GET() {
         designation: 'Super Admin',
         state: 'Haryana',
         cities: 'All India',
+        reportingManager: null,
       },
       {
         empId: 'AB024',
@@ -155,6 +157,7 @@ export async function GET() {
         designation: 'Regional Head (RH)',
         state: 'Haryana',
         cities: 'Gurgaon / Haryana',
+        reportingManager: null,
       },
       {
         empId: 'AB407',
@@ -165,6 +168,7 @@ export async function GET() {
         designation: 'Regional Head (RH)',
         state: 'Haryana',
         cities: 'Gurgaon / Haryana',
+        reportingManager: null,
       },
       {
         empId: 'AB012',
@@ -175,6 +179,29 @@ export async function GET() {
         designation: 'Regional Head (RH)',
         state: 'Haryana',
         cities: 'Gurgaon / Haryana',
+        reportingManager: null,
+      },
+      {
+        empId: 'ISA01',
+        name: 'Utpal Mandal',
+        email: 'utpalmandalfkk1234@gmail.com',
+        phone: '9563080570',
+        role: 'ISA',
+        designation: 'ISA',
+        reportingManager: 'rajnish.kumar@apnibus.com',
+        state: 'Jharkhand',
+        cities: 'Sahibganj',
+      },
+      {
+        empId: 'ISA02',
+        name: 'Deepak Saini',
+        email: 'dks322001@gmail.com',
+        phone: '7427056756',
+        role: 'ISA',
+        designation: 'ISA',
+        reportingManager: 'rajnish.kumar@apnibus.com',
+        state: 'Rajasthan',
+        cities: 'Sawai Madhopur',
       },
     ];
 
@@ -188,6 +215,9 @@ export async function GET() {
           role: l.role,
           designation: l.designation,
           empId: l.empId,
+          state: l.state,
+          cities: l.cities,
+          reportingManager: l.reportingManager,
         },
         create: {
           empId: l.empId,
@@ -196,6 +226,7 @@ export async function GET() {
           phone: l.phone,
           role: l.role,
           designation: l.designation,
+          reportingManager: l.reportingManager,
           state: l.state,
           cities: l.cities,
           password: 'password123',
@@ -207,7 +238,7 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      message: 'Database schema and sales leaders pre-seeded successfully!',
+      message: 'Database schema and sales team members seeded successfully!',
       admin,
       leaders: seededLeaders,
     });

@@ -85,6 +85,28 @@ async function main() {
       state: 'Haryana',
       cities: 'Gurgaon / Haryana',
     },
+    {
+      empId: 'ISA01',
+      name: 'Utpal Mandal',
+      email: 'utpalmandalfkk1234@gmail.com',
+      phone: '9563080570',
+      role: 'ISA',
+      designation: 'ISA',
+      reportingManager: 'rajnish.kumar@apnibus.com',
+      state: 'Jharkhand',
+      cities: 'Sahibganj',
+    },
+    {
+      empId: 'ISA02',
+      name: 'Deepak Saini',
+      email: 'dks322001@gmail.com',
+      phone: '7427056756',
+      role: 'ISA',
+      designation: 'ISA',
+      reportingManager: 'rajnish.kumar@apnibus.com',
+      state: 'Rajasthan',
+      cities: 'Sawai Madhopur',
+    },
   ];
 
   const createdLeaderIds: string[] = [];
