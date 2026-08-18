@@ -23,11 +23,11 @@ export async function GET() {
       );
     `);
 
-    // Auto-update Arvind Ranjan's empId to SUPER in Supabase database
+    // Auto-update Arvind Ranjan's empId to SUPER_ARVIND in Supabase database
     try {
       await prisma.$executeRawUnsafe(`
         UPDATE "User"
-        SET "empId" = 'SUPER', "role" = 'SUPER_ADMIN', "designation" = 'Super Admin'
+        SET "empId" = 'SUPER_ARVIND', "role" = 'SUPER_ADMIN', "designation" = 'Super Admin'
         WHERE "email" = 'arvind.ranjan@apnibus.com';
       `);
     } catch (e) {}
@@ -124,10 +124,10 @@ export async function GET() {
       },
     });
 
-    // 2. Seed Designated Leaders & Team Members
+    // 2. Seed Designated Leaders & Team Members (Each empId MUST BE UNIQUE)
     const leadersData = [
       {
-        empId: 'SUPER',
+        empId: 'SUPER_GAURAV',
         name: 'Gaurav Thakur',
         email: 'gaurav.thakur@apnibus.com',
         phone: '9999999999',
@@ -138,7 +138,7 @@ export async function GET() {
         reportingManager: null,
       },
       {
-        empId: 'SUPER',
+        empId: 'SUPER_ARVIND',
         name: 'Arvind Ranjan',
         email: 'arvind.ranjan@apnibus.com',
         phone: '9888888888',
@@ -182,7 +182,7 @@ export async function GET() {
         reportingManager: null,
       },
       {
-        empId: 'ISA01',
+        empId: 'ISA001',
         name: 'Utpal Mandal',
         email: 'utpalmandalfkk1234@gmail.com',
         phone: '9563080570',
@@ -193,7 +193,7 @@ export async function GET() {
         cities: 'Sahibganj',
       },
       {
-        empId: 'ISA02',
+        empId: 'ISA002',
         name: 'Deepak Saini',
         email: 'dks322001@gmail.com',
         phone: '7427056756',
